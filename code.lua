@@ -27,7 +27,7 @@ _G.WalkSpeedValue = 16
 _G.ESP_Box = false
 _G.ESP_Distance = false
 
--- [[ BOTÃO FLUTUANTE ARRASTÁVEL (MOBILE) ]]
+-- [[ BOTÃO FLUTUANTE ARRASTÁVEL (MOBILE FIX) ]]
 local ScreenGui = Instance.new("ScreenGui")
 local ToggleButton = Instance.new("TextButton")
 local UICorner = Instance.new("UICorner")
@@ -46,9 +46,9 @@ ToggleButton.Text = "GGPVP"
 ToggleButton.TextColor3 = Color3.fromRGB(255, 0, 0)
 ToggleButton.TextSize = 12
 ToggleButton.Active = true
-ToggleButton.Draggable = true -- Permite arrastar no Mobile
+ToggleButton.Draggable = true 
 
-UICorner.CornerRadius = ToolPoint.new(0, 10)
+UICorner.CornerRadius = ToolPoint and ToolPoint.new(0, 10) or UDim.new(0, 10)
 UICorner.Parent = ToggleButton
 
 ToggleButton.MouseButton1Click:Connect(function()
@@ -165,4 +165,4 @@ Config:NewButton("Fechar Script", "Encerrar", function()
     Library:Destroy() 
 end)
 
-Library:Notify("GGPVP LOADED", "Podes arrastar o botão GGPVP para onde quiseres!", 5)
+Library:Notify("GGPVP LOADED", "Script carregado com sucesso!", 5)
