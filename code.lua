@@ -11,10 +11,10 @@ local UserInputService = game:GetService("UserInputService")
 -- [[ VARIÁVEIS GLOBAIS ]]
 _G.AimbotEnabled = false
 _G.AimbotSmoothness = 0 
-_G.WallCheck = true
+_G.WallCheck = true -- Agora padrão ativado
+_G.MaxAimDistance = 1000 -- Nova variável de distância
 _G.NoRecoil = false
 _G.FOVSize = 150
-_G.MaxDistance = 2000
 _G.GodMode = false
 _G.Noclip = false
 _G.FlyEnabled = false
@@ -31,7 +31,7 @@ ScreenGui.Parent = game:GetService("CoreGui")
 ToggleButton.Parent = ScreenGui
 ToggleButton.Size = UDim2.new(0, 60, 0, 60)
 ToggleButton.Position = UDim2.new(0.1, 0, 0.1, 0)
-ToggleButton.Text = "ABRIR"
+ToggleButton.Text = "GGPVP"
 ToggleButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleButton.Draggable = true
@@ -39,40 +39,48 @@ ToggleButton.Active = true
 
 local function toggleUI()
     local gui = game:GetService("CoreGui"):FindFirstChild("KavoConfigGui") or game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChild("KavoConfigGui")
-    if gui then
-        gui.Enabled = not gui.Enabled
-    end
+    if gui then gui.Enabled = not gui.Enabled end
 end
 ToggleButton.MouseButton1Click:Connect(toggleUI)
 
--- [[ FUNÇÃO WALL CHECK & ALVO ]]
-local function IsValid(plr)
-    if plr and plr.Character and plr.Character:FindFirstChild("Humanoid") and plr.Character.Humanoid.Health > 0 then
-        if _G.WallCheck then
-            local head = plr.Character:FindFirstChild("Head")
-            if head then
-                local ray = Camera:ViewportPointToRay(Camera:WorldToViewportPoint(head.Position).X, Camera:WorldToViewportPoint(head.Position).Y)
-                local part = workspace:FindPartOnRayWithIgnoreList(Ray.new(ray.Origin, ray.Direction * 2000), {LocalPlayer.Character, Camera})
-                return part and part:IsDescendantOf(plr.Character)
-            end
-        else
-            return true
-        end
+-- [[ LÓGICA DE VISIBILIDADE (WALL CHECK) ]]
+local function IsVisible(TargetPart)
+    local Character = LocalPlayer.Character
+    if not Character then return false end
+    
+    local Params = RaycastParams.new()
+    Params.FilterType = Enum.RaycastFilterType.Blacklist
+    Params.FilterDescendantsInstances = {Character, Camera}
+    
+    local Direction = (TargetPart.Position - Camera.CFrame.Position).Unit * (TargetPart.Position - Camera.CFrame.Position).Magnitude
+    local Result = workspace:Raycast(Camera.CFrame.Position, Direction, Params)
+    
+    if Result then
+        return Result.Instance:IsDescendantOf(TargetPart.Parent)
     end
-    return false
+    return true
 end
 
+-- [[ BUSCA DE ALVO ]]
 local function GetClosest()
     local target = nil
-    local dist = _G.FOVSize
+    local shortestDist = _G.FOVSize
+    
     for _, v in pairs(Players:GetPlayers()) do
-        if v ~= LocalPlayer and v.Team ~= LocalPlayer.Team and IsValid(v) then
-            local pos, screen = Camera:WorldToViewportPoint(v.Character.Head.Position)
+        if v ~= LocalPlayer and v.Team ~= LocalPlayer.Team and v.Character and v.Character:FindFirstChild("Head") and v.Character.Humanoid.Health > 0 then
+            local head = v.Character.Head
+            local pos, screen = Camera:WorldToViewportPoint(head.Position)
+            
             if screen then
-                local mdist = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                if mdist < dist then
-                    dist = mdist
-                    target = v.Character.Head
+                local mouseDist = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
+                local worldDist = (LocalPlayer.Character.HumanoidRootPart.Position - head.Position).Magnitude
+                
+                -- Verifica FOV + Distância do Slider + Se está atrás da parede
+                if mouseDist < shortestDist and worldDist <= _G.MaxAimDistance then
+                    if IsVisible(head) then
+                        shortestDist = mouseDist
+                        target = head
+                    end
                 end
             end
         end
@@ -80,9 +88,9 @@ local function GetClosest()
     return target
 end
 
--- [[ LOOPS ]]
+-- [[ LOOP PRINCIPAL ]]
 local FOVCircle = Drawing.new("Circle")
-FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+FOVCircle.Color = Color3.fromRGB(255, 0, 0)
 FOVCircle.Thickness = 1
 
 RunService.RenderStepped:Connect(function()
@@ -108,18 +116,36 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+-- [[ FLY & NOCLIP ]]
+local bv, bg
 RunService.Stepped:Connect(function()
     if _G.Noclip and LocalPlayer.Character then
         for _, v in pairs(LocalPlayer.Character:GetDescendants()) do
             if v:IsA("BasePart") then v.CanCollide = false end
         end
     end
+    
+    if _G.FlyEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local root = LocalPlayer.Character.HumanoidRootPart
+        if not bv then
+            bv = Instance.new("BodyVelocity", root); bv.MaxForce = Vector3.new(1,1,1)*math.huge
+            bg = Instance.new("BodyGyro", root); bg.MaxTorque = Vector3.new(1,1,1)*math.huge
+        end
+        bg.CFrame = Camera.CFrame
+        local dir = Vector3.new(0,0,0)
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + Camera.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - Camera.CFrame.LookVector end
+        bv.Velocity = dir * _G.FlySpeed
+    else
+        if bv then bv:Destroy() bv = nil end
+        if bg then bg:Destroy() bg = nil end
+    end
 end)
 
 -- [[ ESP ]]
 local function MakeESP(plr)
     local box = Drawing.new("Square"); box.Color = Color3.fromRGB(255, 0, 0); box.Thickness = 1
-    local dist = Drawing.new("Text"); dist.Color = Color3.fromRGB(255, 255, 255); dist.Size = 15; dist.Center = true
+    local distText = Drawing.new("Text"); distText.Color = Color3.fromRGB(255, 255, 255); distText.Size = 15; distText.Center = true
     local line = Drawing.new("Line"); line.Color = Color3.fromRGB(255, 255, 255); line.Thickness = 1
 
     RunService.RenderStepped:Connect(function()
@@ -131,37 +157,38 @@ local function MakeESP(plr)
                 box.Size = Vector2.new(2000/pos.Z, 2500/pos.Z)
                 box.Position = Vector2.new(pos.X - box.Size.X/2, pos.Y - box.Size.Y/2)
                 
-                dist.Visible = _G.ESP_Distance
-                dist.Position = Vector2.new(pos.X, pos.Y + (box.Size.Y/2))
-                dist.Text = tostring(math.floor((root.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude)) .. "m"
+                distText.Visible = _G.ESP_Distance
+                distText.Position = Vector2.new(pos.X, pos.Y + (box.Size.Y/2))
+                distText.Text = tostring(math.floor((root.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude)) .. "m"
                 
                 if _G.ESP_Skeleton and plr.Character:FindFirstChild("Head") then
                     line.Visible = true
                     line.From = Vector2.new(pos.X, pos.Y)
                     line.To = Vector2.new(Camera:WorldToViewportPoint(plr.Character.Head.Position).X, Camera:WorldToViewportPoint(plr.Character.Head.Position).Y)
                 else line.Visible = false end
-            else box.Visible = false; dist.Visible = false; line.Visible = false end
-        else box.Visible = false; dist.Visible = false; line.Visible = false end
+            else box.Visible = false; distText.Visible = false; line.Visible = false end
+        else box.Visible = false; distText.Visible = false; line.Visible = false end
     end)
 end
 for _, v in pairs(Players:GetPlayers()) do MakeESP(v) end
 Players.PlayerAdded:Connect(MakeESP)
 
--- [[ MENU UI ]]
+-- [[ INTERFACE ]]
 local Combat = Window:NewTab("Combate")
-local CombatSec = Combat:NewSection("Aimbot & Recoil")
+local CombatSec = Combat:NewSection("Aimbot Supreme")
 CombatSec:NewToggle("Ativar Aimbot", "Mira automática", function(s) _G.AimbotEnabled = s end)
-CombatSec:NewToggle("Wall Check", "Não foca atrás da parede", function(s) _G.WallCheck = s end)
 CombatSec:NewToggle("No Recoil", "Câmera Parada", function(s) _G.NoRecoil = s end)
+CombatSec:NewSlider("Distância Máxima Mira", "Alcance do Aimbot", 5000, 100, function(s) _G.MaxAimDistance = s end)
 CombatSec:NewSlider("Suavidade (Smooth)", "Lentidão da mira", 100, 0, function(s) _G.AimbotSmoothness = s/100 end)
 CombatSec:NewSlider("Raio do FOV", "Área de detecção", 800, 30, function(s) _G.FOVSize = s end)
 
 local Troll = Window:NewTab("Troll")
 local TrollSec = Troll:NewSection("Modificações")
-TrollSec:NewToggle("God Mode", "Vida 100%", function(s) _G.GodMode = s end)
+TrollSec:NewToggle("Ativar Fly (Vôo)", "Pode voar pelo mapa", function(s) _G.FlyEnabled = s end)
+TrollSec:NewSlider("Velocidade Fly", "Vôo", 300, 50, function(s) _G.FlySpeed = s end)
 TrollSec:NewToggle("Noclip", "Atravessar Paredes", function(s) _G.Noclip = s end)
 TrollSec:NewSlider("Velocidade Andar", "Walkspeed", 250, 16, function(s) _G.WalkSpeedValue = s end)
-TrollSec:NewSlider("Velocidade Fly", "Vôo", 300, 50, function(s) _G.FlySpeed = s end)
+TrollSec:NewToggle("God Mode", "Vida 100%", function(s) _G.GodMode = s end)
 
 local Visual = Window:NewTab("Visual")
 local VisualSec = Visual:NewSection("ESP Settings")
@@ -172,3 +199,5 @@ VisualSec:NewToggle("ESP Distancia", "Metros (Branco)", function(s) _G.ESP_Dista
 local Config = Window:NewTab("Config")
 Config:NewSection("Ajustes")
 Config:NewButton("Destruir Script", "Limpar", function() ScreenGui:Destroy(); FOVCircle:Remove(); Library:Destroy() end)
+
+Library:Notify("GGPVP HUB", "Tudo configurado! WallCheck e Fly prontos.", 5)
