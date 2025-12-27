@@ -1,5 +1,5 @@
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("TSUO FPS V7 - MOBILE FIX", "DarkTheme")
+local Window = Library.CreateLib("GGPVP - MOBILE VERSION", "DarkTheme")
 
 -- [[ SERVIÇOS ]]
 local RunService = game:GetService("RunService")
@@ -25,31 +25,30 @@ _G.FlySpeed = 50
 _G.WalkSpeedValue = 16
 
 _G.ESP_Box = false
-_G.ESP_Skeleton = false
 _G.ESP_Distance = false
 
--- [[ BOTÃO FLUTUANTE PARA MOBILE ]]
+-- [[ BOTÃO FLUTUANTE ARRASTÁVEL (MOBILE) ]]
 local ScreenGui = Instance.new("ScreenGui")
 local ToggleButton = Instance.new("TextButton")
+local UICorner = Instance.new("UICorner")
 
-ScreenGui.Name = "TSUOMobileGui"
+ScreenGui.Name = "GGPVPGui"
 ScreenGui.Parent = game:GetService("CoreGui")
+ScreenGui.ResetOnSpawn = false
 
 ToggleButton.Name = "ToggleButton"
 ToggleButton.Parent = ScreenGui
-ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-ToggleButton.BorderSizePixel = 2
-ToggleButton.Position = UDim2.new(0.1, 0, 0.1, 0) -- Posição na tela
-ToggleButton.Size = UDim2.new(0, 50, 0, 50) -- Tamanho do botão
-ToggleButton.Font = Enum.Font.SourceSansBold
-ToggleButton.Text = "TSUO"
-ToggleButton.TextColor3 = Color3.fromRGB(0, 255, 255)
-ToggleButton.TextSize = 14
-ToggleButton.ClipsDescendants = true
+ToggleButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ToggleButton.Position = UDim2.new(0.1, 0, 0.15, 0)
+ToggleButton.Size = UDim2.new(0, 60, 0, 60)
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.Text = "GGPVP"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 0, 0)
+ToggleButton.TextSize = 12
+ToggleButton.Active = true
+ToggleButton.Draggable = true -- Permite arrastar no Mobile
 
--- Arredondar botão
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = ToolPoint.new(0, 50)
+UICorner.CornerRadius = ToolPoint.new(0, 10)
 UICorner.Parent = ToggleButton
 
 ToggleButton.MouseButton1Click:Connect(function()
@@ -59,10 +58,10 @@ end)
 -- [[ CÍRCULO FOV ]]
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1.5
-FOVCircle.Color = Color3.fromRGB(0, 255, 255)
+FOVCircle.Color = Color3.fromRGB(255, 0, 0)
 FOVCircle.Visible = true
 
--- [[ LÓGICA DE ALVO PREDITIVA (FIX PULL) ]]
+-- [[ LÓGICA DE ALVO PREDITIVA ]]
 local function GetTarget()
     local Closest = nil
     local ShortestDistance = _G.FOVSize
@@ -108,7 +107,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- [[ TROLL: NOCLIP & FLY ]]
+-- [[ TROLL: NOCLIP ]]
 RunService.Stepped:Connect(function()
     if _G.Noclip and LocalPlayer.Character then
         for _, v in pairs(LocalPlayer.Character:GetDescendants()) do
@@ -142,13 +141,13 @@ Players.PlayerAdded:Connect(CreateESP)
 
 -- [[ INTERFACE ]]
 local Combat = Window:NewTab("Combate")
-local CombatSec = Combat:NewSection("Aimbot")
+local CombatSec = Combat:NewSection("GGPVP - Aimbot")
 CombatSec:NewToggle("Ativar Aimbot", "Mira automática", function(s) _G.AimbotEnabled = s end)
 CombatSec:NewSlider("Suavidade", "Puxada", 100, 0, function(s) _G.AimbotSmoothness = s/100 end)
-CombatSec:NewSlider("Raio FOV", "Tamanho do círculo", 800, 30, function(s) _G.FOVSize = s end)
+CombatSec:NewSlider("Raio FOV", "Círculo", 800, 30, function(s) _G.FOVSize = s end)
 
 local Troll = Window:NewTab("Troll")
-local TrollSec = Troll:NewSection("Player")
+local TrollSec = Troll:NewSection("GGPVP - Troll")
 TrollSec:NewToggle("God Mode", "Vida Infinita", function(s) _G.GodMode = s end)
 TrollSec:NewToggle("Noclip", "Atravessar Paredes", function(s) _G.Noclip = s end)
 TrollSec:NewSlider("Velocidade (Speed)", "Correr", 250, 16, function(s) _G.WalkSpeedValue = s end)
@@ -156,14 +155,14 @@ TrollSec:NewSlider("Velocidade (Speed)", "Correr", 250, 16, function(s) _G.WalkS
 local Visual = Window:NewTab("Visual")
 local VisualSec = Visual:NewSection("ESP")
 VisualSec:NewToggle("Box", "Quadrado", function(s) _G.ESP_Box = s end)
-VisualSec:NewToggle("Distância", "Ver Metros", function(s) _G.ESP_Distance = s end)
+VisualSec:NewToggle("Distância", "Metros", function(s) _G.ESP_Distance = s end)
 
 local Config = Window:NewTab("Config")
-Config:NewSection("Menu")
-Config:NewButton("Fechar Script", "Limpar", function() 
+Config:NewSection("GGPVP Menu")
+Config:NewButton("Fechar Script", "Encerrar", function() 
     FOVCircle:Remove() 
     ScreenGui:Destroy()
     Library:Destroy() 
 end)
 
-Library:Notify("TSUO HUB", "Use o botão azul no canto para abrir/fechar!", 5)
+Library:Notify("GGPVP LOADED", "Podes arrastar o botão GGPVP para onde quiseres!", 5)
