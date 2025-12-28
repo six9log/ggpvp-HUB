@@ -112,14 +112,14 @@ Trol:NewSection("Fly"):NewToggle("Fly", "Voar", function(v) _G.Fly = v end)
 -- ADIÇÃO: Velocidade do Fly
 Trol:NewSlider("Fly Speed", "Velocidade do Voo", 500, 10, function(v) _G.FlySpeed = v end)
 
--- SEÇÃO DE LAG (NOVA)
-local LagSect = Trol:NewSection("Server Troll")
-LagSect:NewToggle("Lag Server (Spam Events)", "Tenta sobrecarregar o servidor", function(v)
+-- SEÇÃO DE CRASH / LAG (ADICIONADA)
+local LagSect = Trol:NewSection("Server Crash & Lag")
+LagSect:NewToggle("Lag Server (Spam Events)", "Tenta derrubar o servidor", function(v)
     _G.LagServer = v
     if v then
         task.spawn(function()
             while _G.LagServer do
-                for i = 1, 100 do
+                for i = 1, 150 do -- Intensidade aumentada para tentativa de crash
                     task.spawn(function()
                         local remote = game:GetService("ReplicatedStorage"):FindFirstChildOfClass("RemoteEvent")
                         if remote then
@@ -127,17 +127,17 @@ LagSect:NewToggle("Lag Server (Spam Events)", "Tenta sobrecarregar o servidor", 
                         end
                     end)
                 end
-                task.wait(0.1)
+                task.wait(0.05)
             end
         end)
     end
 end)
 
-LagSect:NewButton("Chat Spam (Crash Chat)", "Spama mensagens para travar o log", function()
-    for i = 1, 15 do
+LagSect:NewButton("Chat Spam (Crash Chat)", "Tenta travar o chat de todos", function()
+    for i = 1, 20 do
         local chatEvent = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
         if chatEvent and chatEvent:FindFirstChild("SayMessageRequest") then
-            chatEvent.SayMessageRequest:FireServer("GGPVP HUB ON TOP - SERVER FREEZE", "All")
+            chatEvent.SayMessageRequest:FireServer("GGPVP ON TOP - CRASHING...", "All")
         end
     end
 end)
@@ -194,7 +194,6 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- ESP MANTIDO
--- ESP OTIMIZADO (COM LIMPEZA DE OBJETOS TRAVADOS)
 local ESP_Table = {}
 
 local function ClearESP(plr)
@@ -212,7 +211,6 @@ end
 RunService.RenderStepped:Connect(function()
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= LP then
-            -- Cria se não existir
             if not ESP_Table[p] then
                 ESP_Table[p] = {Box = Drawing.new("Square"), Text = Drawing.new("Text")}
                 ESP_Table[p].Box.Thickness = 1
@@ -224,7 +222,6 @@ RunService.RenderStepped:Connect(function()
             local obj = ESP_Table[p]
             local char = p.Character
             
-            -- Só mostra se o ESP estiver ON, o personagem existir e estiver vivo
             if _G.ESP_Enabled and char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
                 local pos, on = Camera:WorldToViewportPoint(char.HumanoidRootPart.Position)
                 
@@ -244,7 +241,6 @@ RunService.RenderStepped:Connect(function()
                     obj.Text.Visible = false
                 end
             else
-                -- Limpa da tela se o jogador morrer ou você desligar o ESP
                 obj.Box.Visible = false
                 obj.Text.Visible = false
             end
@@ -252,5 +248,4 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Limpa quando o jogador sai do servidor para não sobrar quadrado
 game.Players.PlayerRemoving:Connect(ClearESP)
