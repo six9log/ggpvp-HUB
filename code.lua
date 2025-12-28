@@ -17,14 +17,17 @@ _G.FovRadius = 120
 _G.FovVisible = true
 _G.Smoothness = 0.5 
 _G.WallCheck = true
+_G.MaxDistance = 1000 -- NOVO: Distância padrão
 
 _G.Speed = 16
 _G.Fly = false
-_G.FlySpeed = 20
+_G.FlySpeed = 20 -- NOVO: Velocidade padrão do Fly
 
 _G.ESP_Enabled = false
 _G.ESP_Boxes = false
 _G.ESP_Info = false
+
+_G.LagServer = false
 
 --// FOV
 local FOVCircle = Drawing.new("Circle")
@@ -56,13 +59,18 @@ local function GetClosestTarget()
             local hum = p.Character:FindFirstChild("Humanoid")
             if hum and hum.Health > 0 then
                 local part = p.Character[_G.TargetPart]
-                local pos, onscreen = Camera:WorldToViewportPoint(part.Position)
-                if onscreen then
-                    local dist = (Vector2.new(pos.X, pos.Y) - center).Magnitude
-                    if dist < shortest then
-                        if IsVisible(part) then
-                            shortest = dist
-                            target = part
+                
+                -- VERIFICAÇÃO DE DISTÂNCIA MÁXIMA (ADICIONADO)
+                local mag = (LP.Character.HumanoidRootPart.Position - part.Position).Magnitude
+                if mag <= _G.MaxDistance then
+                    local pos, onscreen = Camera:WorldToViewportPoint(part.Position)
+                    if onscreen then
+                        local dist = (Vector2.new(pos.X, pos.Y) - center).Magnitude
+                        if dist < shortest then
+                            if IsVisible(part) then
+                                shortest = dist
+                                target = part
+                            end
                         end
                     end
                 end
@@ -73,7 +81,7 @@ local function GetClosestTarget()
 end
 
 ----------------------------------------------------
--- INTERFACE (MANTIDA + ADIÇÃO DE LOCAL)
+-- INTERFACE (MANTIDA + ADIÇÕES)
 ----------------------------------------------------
 local Main = Window:NewTab("Combate")
 local CombatSect = Main:NewSection("Aimbot (Melhorado)")
@@ -87,6 +95,8 @@ CombatSect:NewDropdown("Local do Alvo", "Onde a mira vai grudar", {"Head", "Huma
 end)
 
 CombatSect:NewSlider("Tamanho FOV", "Raio", 500, 30, function(v) _G.FovRadius = v end)
+-- ADIÇÃO: Distância do Aimbot
+CombatSect:NewSlider("Distância Máxima", "Distância de alcance", 5000, 100, function(v) _G.MaxDistance = v end)
 -- Slider ajustado para maior precisão de "grude"
 CombatSect:NewSlider("Suavidade (Grude)", "100 = Instantâneo", 100, 1, function(v) _G.Smoothness = v/100 end)
 
@@ -97,14 +107,46 @@ VisualSect:NewToggle("Caixas", "Boxes", function(v) _G.ESP_Boxes = v end)
 VisualSect:NewToggle("Infos", "Nome/Vida", function(v) _G.ESP_Info = v end)
 
 local Trol = Window:NewTab("Trol")
-Trol:NewSection("Movimento"):NewSlider("Speed", "Velocidade", 50, 16, function(v) _G.Speed = v end)
+Trol:NewSection("Movimento"):NewSlider("Speed", "Velocidade", 500, 16, function(v) _G.Speed = v end)
 Trol:NewSection("Fly"):NewToggle("Fly", "Voar", function(v) _G.Fly = v end)
+-- ADIÇÃO: Velocidade do Fly
+Trol:NewSlider("Fly Speed", "Velocidade do Voo", 500, 10, function(v) _G.FlySpeed = v end)
+
+-- SEÇÃO DE LAG (NOVA)
+local LagSect = Trol:NewSection("Server Troll")
+LagSect:NewToggle("Lag Server (Spam Events)", "Tenta sobrecarregar o servidor", function(v)
+    _G.LagServer = v
+    if v then
+        task.spawn(function()
+            while _G.LagServer do
+                for i = 1, 100 do
+                    task.spawn(function()
+                        local remote = game:GetService("ReplicatedStorage"):FindFirstChildOfClass("RemoteEvent")
+                        if remote then
+                            remote:FireServer("Lag", "GGPVP")
+                        end
+                    end)
+                end
+                task.wait(0.1)
+            end
+        end)
+    end
+end)
+
+LagSect:NewButton("Chat Spam (Crash Chat)", "Spama mensagens para travar o log", function()
+    for i = 1, 15 do
+        local chatEvent = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
+        if chatEvent and chatEvent:FindFirstChild("SayMessageRequest") then
+            chatEvent.SayMessageRequest:FireServer("GGPVP HUB ON TOP - SERVER FREEZE", "All")
+        end
+    end
+end)
 
 local Config = Window:NewTab("Config")
 Config:NewSection("Menu"):NewKeybind("Abrir/Fechar", "", Enum.KeyCode.RightControl, function(k) _G.MenuKey = k end)
 Config:NewSection("Sair"):NewButton("Kill Script", "Limpar TUDO", function()
-    _G.Aimbot = false; _G.ESP_Enabled = false; _G.FovVisible = false; FOVCircle:Destroy()
-    pcall(function() CoreGui:FindFirstChild("🎯 GGPVP | PC SUPREME"):Destroy() end)
+    _G.Aimbot = false; _G.ESP_Enabled = false; _G.FovVisible = false; _G.LagServer = false; FOVCircle:Destroy()
+    pcall(function() CoreGui:FindFirstChild("🎯 GGPVP |by six"):Destroy() end)
 end)
 
 ----------------------------------------------------
@@ -143,7 +185,8 @@ RunService.Heartbeat:Connect(function()
             if UIS:IsKeyDown(Enum.KeyCode.S) then vel -= Camera.CFrame.LookVector end
             if UIS:IsKeyDown(Enum.KeyCode.A) then vel -= Camera.CFrame.RightVector end
             if UIS:IsKeyDown(Enum.KeyCode.D) then vel += Camera.CFrame.RightVector end
-            root.FlyForce.Velocity = vel * 250
+            -- AGORA USA A VARIÁVEL FLYSPEED DO SLIDER
+            root.FlyForce.Velocity = vel * _G.FlySpeed
         elseif root and root:FindFirstChild("FlyForce") then
             root.FlyForce:Destroy()
         end
@@ -156,10 +199,12 @@ local ESP_Table = {}
 
 local function ClearESP(plr)
     if ESP_Table[plr] then
-        ESP_Table[plr].Box.Visible = false
-        ESP_Table[plr].Text.Visible = false
-        ESP_Table[plr].Box:Destroy()
-        ESP_Table[plr].Text:Destroy()
+        pcall(function()
+            ESP_Table[plr].Box.Visible = false
+            ESP_Table[plr].Text.Visible = false
+            ESP_Table[plr].Box:Destroy()
+            ESP_Table[plr].Text:Destroy()
+        end)
         ESP_Table[plr] = nil
     end
 end
