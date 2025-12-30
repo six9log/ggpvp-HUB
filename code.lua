@@ -1,5 +1,4 @@
--- [[ GGPVP HUB - VERSÃO DEFINITIVA SELIWARE ]]
--- [[ BLOCO 1: SETUP INICIAL ]]
+-- [[ GGPVP HUB - VERSÃO DEFINITIVA SELIWARE CONSERTADA ]]
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -27,6 +26,7 @@ _G.Noclip = false
 _G.SpinBot = false
 _G.ChatSpam = false
 _G.KillAura = false
+_G.AuraRange = 20
 _G.AutoFarm = false
 _G.FarmTarget = "Coin"
 _G.Prefix = ";"
@@ -38,8 +38,8 @@ FOVCircle.NumSides = 460
 FOVCircle.Filled = false
 FOVCircle.Transparency = 1
 FOVCircle.Color = Color3.fromRGB(255, 0, 0)
--- [[ BLOCO 2: INTERFACE DO USUÁRIO ]]
 
+-- [[ INTERFACE DO USUÁRIO ]]
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "GGPVP_GUI"
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -88,7 +88,7 @@ OpenBtn.Parent = ScreenGui
 OpenBtn.Draggable = true
 OpenBtn.MouseButton1Click:Connect(function() Main.Visible = not Main.Visible end)
 
--- Funções para criar botões rápido
+-- FUNÇÕES DE CRIAÇÃO (CORRIGIDO: ADICIONADO NEWTOGGLE)
 local function NewButton(txt, callback)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0.9, 0, 0, 35)
@@ -97,6 +97,20 @@ local function NewButton(txt, callback)
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.Parent = Scroll
     btn.MouseButton1Click:Connect(function() callback(btn) end)
+end
+
+local function NewToggle(parent, txt, var)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.9, 0, 0, 35)
+    btn.Text = txt .. ": OFF"
+    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Parent = parent
+    btn.MouseButton1Click:Connect(function()
+        _G[var] = not _G[var]
+        btn.Text = txt .. (_G[var] and ": ON" or ": OFF")
+        btn.BackgroundColor3 = _G[var] and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(50, 50, 50)
+    end)
 end
 
 local function NewInput(placeholder, callback)
@@ -109,21 +123,21 @@ local function NewInput(placeholder, callback)
     box.Parent = Scroll
     box.FocusLost:Connect(function() callback(box.Text) end)
 end
--- [[ BLOCO 3: COMBATE (AIMBOT & SILENT) ]]
 
+-- [[ LÓGICA DE COMBATE ]]
 local function GetClosestPlayer()
     local target = nil
     local dist = _G.AimbotFOV
     local mouse = UserInputService:GetMouseLocation()
 
     for _, v in pairs(Players:GetPlayers()) do
-        if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild(_G.AimbotPart) and v.Character.Humanoid.Health > 0 then
+        if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild(_G.AimbotPart) and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
             local pos, onScreen = Camera:WorldToViewportPoint(v.Character[_G.AimbotPart].Position)
             if onScreen then
                 local magnitude = (Vector2.new(pos.X, pos.Y) - mouse).Magnitude
                 if magnitude < dist then
                     if _G.WallCheck then
-                        local ray = Camera:ViewportPointToRay(pos.X, pos.Y)
+                        local ray = Ray.new(Camera.CFrame.Position, (v.Character[_G.AimbotPart].Position - Camera.CFrame.Position).Unit * 1000)
                         local hit = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, Camera})
                         if hit and hit:IsDescendantOf(v.Character) then
                             dist = magnitude
@@ -140,73 +154,75 @@ local function GetClosestPlayer()
     return target
 end
 
--- HOOKING PARA SILENT AIM
+-- HOOKING PARA SILENT AIM (PROTEGIDO)
 local mt = getrawmetatable(game)
 local oldNamecall = mt.__namecall
 setreadonly(mt, false)
 mt.__namecall = newcclosure(function(self, ...)
     local method = getnamecallmethod()
     local args = {...}
-    if _G.SilentAim and method == "FireServer" and tostring(self):find("Shoot") then
+    if not checkcaller() and _G.SilentAim and method == "FireServer" and tostring(self):find("Shoot") then
         local t = GetClosestPlayer()
         if t then args[1] = t.Position end
     end
     return oldNamecall(self, table.unpack(args))
 end)
 setreadonly(mt, true)
--- [[ BLOCO 4: MOVIMENTAÇÃO E FÍSICA ]]
 
+-- [[ MOVIMENTAÇÃO E FÍSICA ]]
 local BV = Instance.new("BodyVelocity")
 local BG = Instance.new("BodyGyro")
 BV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
 BG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
 
--- LOOP DE MOVIMENTO E FLY
 RunService.RenderStepped:Connect(function()
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         local Root = LocalPlayer.Character.HumanoidRootPart
         local Hum = LocalPlayer.Character.Humanoid
 
-        -- Velocidade e Pulo
         Hum.WalkSpeed = _G.Speed
         Hum.JumpPower = _G.JumpPower
 
-        -- Sistema de Fly
         if _G.FlyEnabled then
             BV.Parent = Root
             BG.Parent = Root
             BG.CFrame = Camera.CFrame
-            
             local Dir = Vector3.new(0,0,0)
             if UserInputService:IsKeyDown(Enum.KeyCode.W) then Dir = Dir + Camera.CFrame.LookVector end
             if UserInputService:IsKeyDown(Enum.KeyCode.S) then Dir = Dir - Camera.CFrame.LookVector end
             if UserInputService:IsKeyDown(Enum.KeyCode.A) then Dir = Dir - Camera.CFrame.RightVector end
             if UserInputService:IsKeyDown(Enum.KeyCode.D) then Dir = Dir + Camera.CFrame.RightVector end
-            
             BV.Velocity = Dir * _G.FlySpeed
         else
             BV.Parent = nil
             BG.Parent = nil
         end
 
-        -- Noclip
         if _G.Noclip then
             for _, v in pairs(LocalPlayer.Character:GetDescendants()) do
                 if v:IsA("BasePart") then v.CanCollide = false end
             end
         end
     end
+    
+    -- LOOP AIMBOT
+    FOVCircle.Position = UserInputService:GetMouseLocation()
+    FOVCircle.Radius = _G.AimbotFOV
+    FOVCircle.Visible = _G.Aimbot
+    if _G.Aimbot then
+        local target = GetClosestPlayer()
+        if target then
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, target.Position), _G.AimbotSmoothness)
+        end
+    end
 end)
--- [[ BLOCO 5: TROLLS E AUTOMAÇÃO ]]
 
+-- [[ TROLLS E AUTOMAÇÃO ]]
 task.spawn(function()
     while task.wait(0.1) do
-        -- SpinBot
         if _G.SpinBot and LocalPlayer.Character then
             LocalPlayer.Character.HumanoidRootPart.CFrame *= CFrame.Angles(0, math.rad(50), 0)
         end
-
-        -- Kill Aura
         if _G.KillAura and LocalPlayer.Character then
             for _, v in pairs(Players:GetPlayers()) do
                 if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
@@ -218,8 +234,6 @@ task.spawn(function()
                 end
             end
         end
-
-        -- Auto Farm
         if _G.AutoFarm and LocalPlayer.Character then
             for _, v in pairs(workspace:GetDescendants()) do
                 if v:IsA("BasePart") and v.Name:lower():find(_G.FarmTarget:lower()) then
@@ -231,55 +245,27 @@ task.spawn(function()
         end
     end
 end)
--- [[ BLOCO 6: BOTÕES E FINALIZAÇÃO ]]
 
--- ABA COMBATE
-NewButton("Aimbot: OFF", function(b)
+-- [[ BOTÕES E FINALIZAÇÃO ]]
+NewButton("Ativar Aimbot", function(b)
     _G.Aimbot = not _G.Aimbot
     b.Text = _G.Aimbot and "Aimbot: ON" or "Aimbot: OFF"
     b.BackgroundColor3 = _G.Aimbot and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(50, 50, 50)
 end)
 
-NewToggle(Scroll, "Silent Aim", "SilentAim") -- Se você usou a função NewToggle anterior
+NewToggle(Scroll, "Silent Aim", "SilentAim")
+NewInput("Velocidade (16)", function(t) _G.Speed = tonumber(t) or 16 end)
+NewInput("Pulo (50)", function(t) _G.JumpPower = tonumber(t) or 50 end)
+NewToggle(Scroll, "Ativar Fly", "FlyEnabled")
+NewToggle(Scroll, "Ativar Noclip", "Noclip")
+NewToggle(Scroll, "Ativar SpinBot", "SpinBot")
+NewToggle(Scroll, "Kill Aura", "KillAura")
+NewInput("Alvo Farm", function(t) _G.FarmTarget = t end)
+NewToggle(Scroll, "Auto Farm", "AutoFarm")
 
-NewInput("Velocidade (Padrão 16)", function(t) _G.Speed = tonumber(t) or 16 end)
-NewInput("Pulo (Padrão 50)", function(t) _G.JumpPower = tonumber(t) or 50 end)
-
-NewButton("Fly: OFF", function(b)
-    _G.FlyEnabled = not _G.FlyEnabled
-    b.Text = _G.FlyEnabled and "Fly: ON" or "Fly: OFF"
-end)
-
-NewButton("ESP Chams: OFF", function(b)
-    _G.ESP = not _G.ESP
-    b.Text = _G.ESP and "ESP: ON" or "ESP: OFF"
-    -- Lógica de Highlight (ESP) aqui
-end)
-
-NewButton("SpinBot: OFF", function(b)
-    _G.SpinBot = not _G.SpinBot
-    b.Text = _G.SpinBot and "SpinBot: ON" or "SpinBot: OFF"
-end)
-
--- LOOP PRINCIPAL DO AIMBOT
-RunService.RenderStepped:Connect(function()
-    FOVCircle.Position = UserInputService:GetMouseLocation()
-    FOVCircle.Radius = _G.AimbotFOV
-    FOVCircle.Visible = _G.Aimbot
-
-    if _G.Aimbot then
-        local target = GetClosestPlayer()
-        if target then
-            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, target.Position), _G.AimbotSmoothness)
-        end
-    end
-end)
-
--- MENSAGEM DE SUCESSO
 game:GetService("StarterGui"):SetCore("SendNotification", {
     Title = "GGPVP HUB";
-    Text = "Executado com sucesso no Seliware!";
+    Text = "Executado e Consertado!";
     Duration = 5;
 })
-
 print("GGPVP ULTIMATE CARREGADO!")
