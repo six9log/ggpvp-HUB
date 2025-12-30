@@ -1,152 +1,111 @@
--- [[ GGPVP HUB - VERSÃO DEFINITIVA SELIWARE CONSERTADA ]]
+-- [[ GGPVP SUPREME V12 | FINAL REPARO DANO & TUDO ATIVADO ]]
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window = Library.CreateLib("🎯 GGPVP SUPREME V12", "DarkTheme")
+
+--// CONFIGURAÇÕES (NÃO REMOVER NADA)
+_G.Aimbot = false
+_G.TargetPart = "Head"
+_G.Fov = 150
+_G.WallCheck = true
+_G.AimCheckMorto = true
+_G.MaxDistance = 1000
+_G.Smoothness = 0.2
+
+_G.ESP_Master = false
+_G.ESP_Box = false
+_G.ESP_Name = false
+_G.ESP_Health = false
+_G.ESP_Distance = false
+
+_G.Speed = 16
+_G.Fly = false
+_G.FlySpeed = 50
+_G.Crashing = false
 
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
+local LP = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+local Mouse = LP:GetMouse()
+local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local HttpService = game:GetService("HttpService")
-local Debris = game:GetService("Debris")
 
--- VARIÁVEIS DE CONTROLE GLOBAIS
-_G.Aimbot = false
-_G.AimbotPart = "Head"
-_G.AimbotFOV = 120
-_G.AimbotSmoothness = 0.15
-_G.WallCheck = true
-_G.SilentAim = false
-_G.ESP = false
-_G.Speed = 16
-_G.JumpPower = 50
-_G.FlyEnabled = false
-_G.FlySpeed = 50
-_G.HitboxSize = 2
-_G.Noclip = false
-_G.SpinBot = false
-_G.ChatSpam = false
-_G.KillAura = false
-_G.AuraRange = 20
-_G.AutoFarm = false
-_G.FarmTarget = "Coin"
-_G.Prefix = ";"
-
--- DRAWING API (Círculo do Aimbot)
+--// FOV CIRCLE
 local FOVCircle = Drawing.new("Circle")
-FOVCircle.Thickness = 2
-FOVCircle.NumSides = 460
-FOVCircle.Filled = false
-FOVCircle.Transparency = 1
-FOVCircle.Color = Color3.fromRGB(255, 0, 0)
+FOVCircle.Thickness = 1
+FOVCircle.Color = Color3.fromRGB(0, 255, 255)
+FOVCircle.Transparency = 0.7
+FOVCircle.Visible = true
 
--- [[ INTERFACE DO USUÁRIO ]]
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "GGPVP_GUI"
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-ScreenGui.ResetOnSpawn = false
+--// TECLA HOME PARA MINIMIZAR
+local MenuVisible = true
+UIS.InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Enum.KeyCode.Home then
+        MenuVisible = not MenuVisible
+        local gui = game:GetService("CoreGui"):FindFirstChild("🎯 GGPVP SUPREME V12")
+        if gui then gui.Enabled = MenuVisible end
+    end
+end)
 
-local Main = Instance.new("Frame")
-Main.Name = "MainFrame"
-Main.Size = UDim2.new(0, 450, 0, 300)
-Main.Position = UDim2.new(0.5, -225, 0.5, -150)
-Main.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Main.BorderSizePixel = 0
-Main.Visible = false
-Main.Active = true
-Main.Draggable = true
-Main.Parent = ScreenGui
-
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 35)
-Title.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-Title.Text = "GGPVP HUB - SELIWARE EDITION"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 20
-Title.Parent = Main
-
-local Scroll = Instance.new("ScrollingFrame")
-Scroll.Size = UDim2.new(1, -10, 1, -45)
-Scroll.Position = UDim2.new(0, 5, 0, 40)
-Scroll.BackgroundTransparency = 1
-Scroll.CanvasSize = UDim2.new(0, 0, 2, 0)
-Scroll.ScrollBarThickness = 4
-Scroll.Parent = Main
-
-local UIList = Instance.new("UIListLayout")
-UIList.Parent = Scroll
-UIList.Padding = UDim.new(0, 5)
-UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
-local OpenBtn = Instance.new("TextButton")
-OpenBtn.Size = UDim2.new(0, 70, 0, 70)
-OpenBtn.Position = UDim2.new(0, 10, 0.4, 0)
-OpenBtn.Text = "GGPVP"
-OpenBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-OpenBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-OpenBtn.Parent = ScreenGui
-OpenBtn.Draggable = true
-OpenBtn.MouseButton1Click:Connect(function() Main.Visible = not Main.Visible end)
-
--- FUNÇÕES DE CRIAÇÃO (CORRIGIDO: ADICIONADO NEWTOGGLE)
-local function NewButton(txt, callback)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.9, 0, 0, 35)
-    btn.Text = txt
-    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Parent = Scroll
-    btn.MouseButton1Click:Connect(function() callback(btn) end)
+--// SISTEMA ESP (DRAWING)
+local ESP_Elements = {}
+local function CreateESP(plr)
+    if ESP_Elements[plr] then return end
+    ESP_Elements[plr] = {
+        Box = Drawing.new("Square"),
+        Name = Drawing.new("Text"),
+        Health = Drawing.new("Text"),
+        Dist = Drawing.new("Text")
+    }
+    local e = ESP_Elements[plr]
+    e.Box.Thickness = 1
+    e.Box.Color = Color3.fromRGB(255, 0, 0)
+    e.Name.Size = 14
+    e.Name.Center = true
+    e.Name.Outline = true
+    e.Health.Size = 14
+    e.Health.Center = true
+    e.Health.Outline = true
+    e.Dist.Size = 14
+    e.Dist.Center = true
+    e.Dist.Outline = true
 end
 
-local function NewToggle(parent, txt, var)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.9, 0, 0, 35)
-    btn.Text = txt .. ": OFF"
-    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Parent = parent
-    btn.MouseButton1Click:Connect(function()
-        _G[var] = not _G[var]
-        btn.Text = txt .. (_G[var] and ": ON" or ": OFF")
-        btn.BackgroundColor3 = _G[var] and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(50, 50, 50)
-    end)
+--// VALIDAÇÃO DE ALVO
+local function Validate(part)
+    if not part or not part.Parent then return false end
+    local char = part.Parent
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    
+    if _G.AimCheckMorto and (not hum or hum.Health <= 0) then return false end
+    if not root then return false end
+    
+    local mag = (LP.Character.HumanoidRootPart.Position - part.Position).Magnitude
+    if mag > _G.MaxDistance then return false end
+    
+    if _G.WallCheck then
+        local params = RaycastParams.new()
+        params.FilterType = Enum.RaycastFilterType.Exclude
+        params.FilterDescendantsInstances = {LP.Character, char}
+        local cast = workspace:Raycast(Camera.CFrame.Position, (part.Position - Camera.CFrame.Position), params)
+        if cast then return false end
+    end
+    return true
 end
 
-local function NewInput(placeholder, callback)
-    local box = Instance.new("TextBox")
-    box.Size = UDim2.new(0.9, 0, 0, 35)
-    box.PlaceholderText = placeholder
-    box.Text = ""
-    box.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    box.TextColor3 = Color3.fromRGB(255, 255, 255)
-    box.Parent = Scroll
-    box.FocusLost:Connect(function() callback(box.Text) end)
-end
-
--- [[ LÓGICA DE COMBATE ]]
-local function GetClosestPlayer()
-    local target = nil
-    local dist = _G.AimbotFOV
-    local mouse = UserInputService:GetMouseLocation()
-
+local function GetClosest()
+    local target, shortest = nil, _G.Fov
+    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    
     for _, v in pairs(Players:GetPlayers()) do
-        if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild(_G.AimbotPart) and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
-            local pos, onScreen = Camera:WorldToViewportPoint(v.Character[_G.AimbotPart].Position)
-            if onScreen then
-                local magnitude = (Vector2.new(pos.X, pos.Y) - mouse).Magnitude
-                if magnitude < dist then
-                    if _G.WallCheck then
-                        local ray = Ray.new(Camera.CFrame.Position, (v.Character[_G.AimbotPart].Position - Camera.CFrame.Position).Unit * 1000)
-                        local hit = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, Camera})
-                        if hit and hit:IsDescendantOf(v.Character) then
-                            dist = magnitude
-                            target = v.Character[_G.AimbotPart]
-                        end
-                    else
-                        dist = magnitude
-                        target = v.Character[_G.AimbotPart]
-                    end
+        if v ~= LP and v.Character and v.Character:FindFirstChild(_G.TargetPart) then
+            local part = v.Character[_G.TargetPart]
+            local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
+            if onScreen and Validate(part) then
+                local magnitude = (Vector2.new(pos.X, pos.Y) - center).Magnitude
+                if magnitude < shortest then
+                    shortest = magnitude
+                    target = part
                 end
             end
         end
@@ -154,118 +113,134 @@ local function GetClosestPlayer()
     return target
 end
 
--- HOOKING PARA SILENT AIM (PROTEGIDO)
-local mt = getrawmetatable(game)
-local oldNamecall = mt.__namecall
-setreadonly(mt, false)
-mt.__namecall = newcclosure(function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
-    if not checkcaller() and _G.SilentAim and method == "FireServer" and tostring(self):find("Shoot") then
-        local t = GetClosestPlayer()
-        if t then args[1] = t.Position end
-    end
-    return oldNamecall(self, table.unpack(args))
+----------------------------------------------------
+-- INTERFACE
+----------------------------------------------------
+local Combat = Window:NewTab("Combate")
+local CSect = Combat:NewSection("Aimbot Supreme")
+CSect:NewToggle("Ativar Aimbot", "Mira automática", function(v) _G.Aimbot = v end)
+CSect:NewDropdown("Focar em:", "Onde a mira gruda", {"Head", "UpperTorso", "HumanoidRootPart"}, function(v) _G.TargetPart = v end)
+CSect:NewToggle("Wall Check", "Verifica se está atrás da parede", function(v) _G.WallCheck = v end)
+CSect:NewToggle("Aim Check Morto", "Não mira em cadáveres", function(v) _G.AimCheckMorto = v end)
+CSect:NewSlider("Distância Máxima", "Alcance do Aim", 5000, 100, function(v) _G.MaxDistance = v end)
+CSect:NewSlider("Raio do FOV", "Tamanho do círculo", 800, 50, function(v) _G.Fov = v end)
+CSect:NewSlider("Suavidade", "Smoothness", 100, 1, function(v) _G.Smoothness = v/100 end)
+
+local Visual = Window:NewTab("Visual")
+local VSect = Visual:NewSection("ESP Completo")
+VSect:NewToggle("Mestre ESP", "Ativar sistema visual", function(v) _G.ESP_Master = v end)
+VSect:NewToggle("Mostrar Box", "Quadrado no player", function(v) _G.ESP_Box = v end)
+VSect:NewToggle("Mostrar Nome", "Nome do player", function(v) _G.ESP_Name = v end)
+VSect:NewToggle("Mostrar Vida", "Barra de HP", function(v) _G.ESP_Health = v end)
+VSect:NewToggle("Mostrar Distância", "Distância em metros", function(v) _G.ESP_Distance = v end)
+
+local Troll = Window:NewTab("Troll")
+local TSect = Troll:NewSection("Movimentação & Server")
+TSect:NewSlider("Velocidade (WalkSpeed)", "Velocidade padrão", 500, 16, function(v) _G.Speed = v end)
+TSect:NewToggle("Ativar Fly", "Voar (WASD)", function(v) _G.Fly = v end)
+TSect:NewSlider("Velocidade do Voo", "Velocidade do Fly", 500, 10, function(v) _G.FlySpeed = v end)
+
+TSect:NewButton("CRASH SERVER (EXTREME)", "Tenta derrubar o servidor", function()
+    _G.Crashing = not _G.Crashing
+    task.spawn(function()
+        while _G.Crashing do
+            local rs = game:GetService("ReplicatedStorage")
+            for i = 1, 150 do
+                local remote = rs:FindFirstChildOfClass("RemoteEvent")
+                if remote then remote:FireServer("Crash", string.rep("GGPVP", 1000)) end
+            end
+            task.wait()
+        end
+    end)
 end)
-setreadonly(mt, true)
 
--- [[ MOVIMENTAÇÃO E FÍSICA ]]
-local BV = Instance.new("BodyVelocity")
-local BG = Instance.new("BodyGyro")
-BV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-BG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-
+----------------------------------------------------
+-- LOOP PRINCIPAL (DANO CORRIGIDO + ESP)
+----------------------------------------------------
 RunService.RenderStepped:Connect(function()
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local Root = LocalPlayer.Character.HumanoidRootPart
-        local Hum = LocalPlayer.Character.Humanoid
+    FOVCircle.Radius = _G.Fov
+    FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    FOVCircle.Visible = true
 
-        Hum.WalkSpeed = _G.Speed
-        Hum.JumpPower = _G.JumpPower
-
-        if _G.FlyEnabled then
-            BV.Parent = Root
-            BG.Parent = Root
-            BG.CFrame = Camera.CFrame
-            local Dir = Vector3.new(0,0,0)
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then Dir = Dir + Camera.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then Dir = Dir - Camera.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) then Dir = Dir - Camera.CFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then Dir = Dir + Camera.CFrame.RightVector end
-            BV.Velocity = Dir * _G.FlySpeed
-        else
-            BV.Parent = nil
-            BG.Parent = nil
-        end
-
-        if _G.Noclip then
-            for _, v in pairs(LocalPlayer.Character:GetDescendants()) do
-                if v:IsA("BasePart") then v.CanCollide = false end
-            end
-        end
-    end
-    
-    -- LOOP AIMBOT
-    FOVCircle.Position = UserInputService:GetMouseLocation()
-    FOVCircle.Radius = _G.AimbotFOV
-    FOVCircle.Visible = _G.Aimbot
+    -- LÓGICA DE AIMBOT PARA MATAR (DANO REGISTRADO)
     if _G.Aimbot then
-        local target = GetClosestPlayer()
+        local target = GetClosest()
         if target then
-            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, target.Position), _G.AimbotSmoothness)
+            local pos, onScreen = Camera:WorldToViewportPoint(target.Position)
+            local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+            
+            if onScreen then
+                -- Move o mouse (Gira o Personagem para o Servidor)
+                mousemoverel((pos.X - center.X) * _G.Smoothness, (pos.Y - center.Y) * _G.Smoothness)
+                
+                -- Alinha a Câmera (Garante que o tiro vá no alvo)
+                local currentCF = Camera.CFrame
+                local targetCF = CFrame.new(currentCF.Position, target.Position)
+                Camera.CFrame = currentCF:Lerp(targetCF, _G.Smoothness)
+            end
+        end
+    end
+
+    -- SISTEMA ESP
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LP then
+            if not ESP_Elements[p] then CreateESP(p) end
+            local e = ESP_Elements[p]
+            local char = p.Character
+            if _G.ESP_Master and char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
+                local root, hum = char.HumanoidRootPart, char.Humanoid
+                local pos, on = Camera:WorldToViewportPoint(root.Position)
+                if on and hum.Health > 0 then
+                    local size = 2000 / pos.Z
+                    e.Box.Visible = _G.ESP_Box
+                    e.Box.Size = Vector2.new(size, size * 1.5)
+                    e.Box.Position = Vector2.new(pos.X - size/2, pos.Y - size/2)
+                    e.Name.Visible = _G.ESP_Name
+                    e.Name.Text = p.Name
+                    e.Name.Position = Vector2.new(pos.X, pos.Y - size/2 - 15)
+                    e.Health.Visible = _G.ESP_Health
+                    e.Health.Text = "HP: " .. math.floor(hum.Health)
+                    e.Health.Position = Vector2.new(pos.X, pos.Y + size/2 + 5)
+                    e.Dist.Visible = _G.ESP_Distance
+                    e.Dist.Text = math.floor((LP.Character.HumanoidRootPart.Position - root.Position).Magnitude) .. "m"
+                    e.Dist.Position = Vector2.new(pos.X, pos.Y + size/2 + 20)
+                else
+                    e.Box.Visible = false; e.Name.Visible = false; e.Health.Visible = false; e.Dist.Visible = false
+                end
+            elseif e then
+                e.Box.Visible = false; e.Name.Visible = false; e.Health.Visible = false; e.Dist.Visible = false
+            end
         end
     end
 end)
 
--- [[ TROLLS E AUTOMAÇÃO ]]
-task.spawn(function()
-    while task.wait(0.1) do
-        if _G.SpinBot and LocalPlayer.Character then
-            LocalPlayer.Character.HumanoidRootPart.CFrame *= CFrame.Angles(0, math.rad(50), 0)
-        end
-        if _G.KillAura and LocalPlayer.Character then
-            for _, v in pairs(Players:GetPlayers()) do
-                if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
-                    local dist = (v.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
-                    if dist <= _G.AuraRange then
-                        local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
-                        if tool then tool:Activate() end
-                    end
-                end
+-- LOOP DE FÍSICA (SPEED/FLY)
+RunService.Heartbeat:Connect(function()
+    if LP.Character and LP.Character:FindFirstChild("Humanoid") then
+        LP.Character.Humanoid.WalkSpeed = _G.Speed
+        local root = LP.Character:FindFirstChild("HumanoidRootPart")
+        if _G.Fly and root then
+            if not root:FindFirstChild("FlyForce") then
+                local bv = Instance.new("BodyVelocity", root)
+                bv.Name = "FlyForce"
+                bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
             end
-        end
-        if _G.AutoFarm and LocalPlayer.Character then
-            for _, v in pairs(workspace:GetDescendants()) do
-                if v:IsA("BasePart") and v.Name:lower():find(_G.FarmTarget:lower()) then
-                    LocalPlayer.Character.HumanoidRootPart.CFrame = v.CFrame
-                    firetouchinterest(LocalPlayer.Character.HumanoidRootPart, v, 0)
-                    firetouchinterest(LocalPlayer.Character.HumanoidRootPart, v, 1)
-                end
-            end
+            local vel = Vector3.zero
+            if UIS:IsKeyDown(Enum.KeyCode.W) then vel += Camera.CFrame.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then vel -= Camera.CFrame.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then vel -= Camera.CFrame.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then vel += Camera.CFrame.RightVector end
+            root.FlyForce.Velocity = vel * _G.FlySpeed
+        elseif root and root:FindFirstChild("FlyForce") then
+            root.FlyForce:Destroy()
         end
     end
 end)
 
--- [[ BOTÕES E FINALIZAÇÃO ]]
-NewButton("Ativar Aimbot", function(b)
-    _G.Aimbot = not _G.Aimbot
-    b.Text = _G.Aimbot and "Aimbot: ON" or "Aimbot: OFF"
-    b.BackgroundColor3 = _G.Aimbot and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(50, 50, 50)
+-- LIMPEZA AO SAIR
+Players.PlayerRemoving:Connect(function(p)
+    if ESP_Elements[p] then
+        for _, obj in pairs(ESP_Elements[p]) do obj:Destroy() end
+        ESP_Elements[p] = nil
+    end
 end)
-
-NewToggle(Scroll, "Silent Aim", "SilentAim")
-NewInput("Velocidade (16)", function(t) _G.Speed = tonumber(t) or 16 end)
-NewInput("Pulo (50)", function(t) _G.JumpPower = tonumber(t) or 50 end)
-NewToggle(Scroll, "Ativar Fly", "FlyEnabled")
-NewToggle(Scroll, "Ativar Noclip", "Noclip")
-NewToggle(Scroll, "Ativar SpinBot", "SpinBot")
-NewToggle(Scroll, "Kill Aura", "KillAura")
-NewInput("Alvo Farm", function(t) _G.FarmTarget = t end)
-NewToggle(Scroll, "Auto Farm", "AutoFarm")
-
-game:GetService("StarterGui"):SetCore("SendNotification", {
-    Title = "GGPVP HUB";
-    Text = "Executado e Consertado!";
-    Duration = 5;
-})
-print("GGPVP ULTIMATE CARREGADO!")
