@@ -1,8 +1,8 @@
--- [[ GGPVP SUPREME V9 | FULL POWER & OPTIMIZED ]]
+-- [[ GGPVP SUPREME V12 | FINAL REPARO DANO & TUDO ATIVADO ]]
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("🎯 GGPVP SUPREME V9", "DarkTheme")
+local Window = Library.CreateLib("🎯 GGPVP SUPREME V12", "DarkTheme")
 
---// CONFIGURAÇÕES GLOBAIS (NÃO REMOVER)
+--// CONFIGURAÇÕES (NÃO REMOVER NADA)
 _G.Aimbot = false
 _G.TargetPart = "Head"
 _G.Fov = 150
@@ -36,29 +36,53 @@ FOVCircle.Color = Color3.fromRGB(0, 255, 255)
 FOVCircle.Transparency = 0.7
 FOVCircle.Visible = true
 
---// TECLA PARA MINIMIZAR (HOME)
-_G.MenuKey = Enum.KeyCode.Home
+--// TECLA HOME PARA MINIMIZAR
+local MenuVisible = true
 UIS.InputBegan:Connect(function(input, gpe)
-    if not gpe and input.KeyCode == _G.MenuKey then
-        local targetGui = game:GetService("CoreGui"):FindFirstChild("🎯 GGPVP SUPREME V9")
-        if targetGui then targetGui.Enabled = not targetGui.Enabled end
+    if not gpe and input.KeyCode == Enum.KeyCode.Home then
+        MenuVisible = not MenuVisible
+        local gui = game:GetService("CoreGui"):FindFirstChild("🎯 GGPVP SUPREME V12")
+        if gui then gui.Enabled = MenuVisible end
     end
 end)
 
---// LÓGICA DE VISIBILIDADE & DISTÂNCIA
-local function ValidateTarget(part)
-    if not part then return false end
+--// SISTEMA ESP (DRAWING)
+local ESP_Elements = {}
+local function CreateESP(plr)
+    if ESP_Elements[plr] then return end
+    ESP_Elements[plr] = {
+        Box = Drawing.new("Square"),
+        Name = Drawing.new("Text"),
+        Health = Drawing.new("Text"),
+        Dist = Drawing.new("Text")
+    }
+    local e = ESP_Elements[plr]
+    e.Box.Thickness = 1
+    e.Box.Color = Color3.fromRGB(255, 0, 0)
+    e.Name.Size = 14
+    e.Name.Center = true
+    e.Name.Outline = true
+    e.Health.Size = 14
+    e.Health.Center = true
+    e.Health.Outline = true
+    e.Dist.Size = 14
+    e.Dist.Center = true
+    e.Dist.Outline = true
+end
+
+--// VALIDAÇÃO DE ALVO
+local function Validate(part)
+    if not part or not part.Parent then return false end
     local char = part.Parent
     local hum = char:FindFirstChildOfClass("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
     
-    -- Aim Check Morto
     if _G.AimCheckMorto and (not hum or hum.Health <= 0) then return false end
+    if not root then return false end
     
-    -- Distância Máxima
     local mag = (LP.Character.HumanoidRootPart.Position - part.Position).Magnitude
     if mag > _G.MaxDistance then return false end
     
-    -- Wall Check
     if _G.WallCheck then
         local params = RaycastParams.new()
         params.FilterType = Enum.RaycastFilterType.Exclude
@@ -66,24 +90,21 @@ local function ValidateTarget(part)
         local cast = workspace:Raycast(Camera.CFrame.Position, (part.Position - Camera.CFrame.Position), params)
         if cast then return false end
     end
-    
     return true
 end
 
 local function GetClosest()
-    local target = nil
-    local dist = _G.Fov
+    local target, shortest = nil, _G.Fov
     local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     
     for _, v in pairs(Players:GetPlayers()) do
         if v ~= LP and v.Character and v.Character:FindFirstChild(_G.TargetPart) then
             local part = v.Character[_G.TargetPart]
             local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
-            
-            if onScreen and ValidateTarget(part) then
+            if onScreen and Validate(part) then
                 local magnitude = (Vector2.new(pos.X, pos.Y) - center).Magnitude
-                if magnitude < dist then
-                    dist = magnitude
+                if magnitude < shortest then
+                    shortest = magnitude
                     target = part
                 end
             end
@@ -110,7 +131,7 @@ local VSect = Visual:NewSection("ESP Completo")
 VSect:NewToggle("Mestre ESP", "Ativar sistema visual", function(v) _G.ESP_Master = v end)
 VSect:NewToggle("Mostrar Box", "Quadrado no player", function(v) _G.ESP_Box = v end)
 VSect:NewToggle("Mostrar Nome", "Nome do player", function(v) _G.ESP_Name = v end)
-VSect:NewToggle("Mostrar Vida", "Barra de HP", function(v) __G.ESP_Health = v end)
+VSect:NewToggle("Mostrar Vida", "Barra de HP", function(v) _G.ESP_Health = v end)
 VSect:NewToggle("Mostrar Distância", "Distância em metros", function(v) _G.ESP_Distance = v end)
 
 local Troll = Window:NewTab("Troll")
@@ -123,60 +144,77 @@ TSect:NewButton("CRASH SERVER (EXTREME)", "Tenta derrubar o servidor", function(
     _G.Crashing = not _G.Crashing
     task.spawn(function()
         while _G.Crashing do
-            -- Método de spam Massivo de Physics e Remotes
             local rs = game:GetService("ReplicatedStorage")
-            for i = 1, 100 do
-                task.spawn(function()
-                    local remote = rs:FindFirstChildOfClass("RemoteEvent")
-                    if remote then
-                        remote:FireServer("Crash", string.rep("GGPVP", 10000))
-                    end
-                end)
+            for i = 1, 150 do
+                local remote = rs:FindFirstChildOfClass("RemoteEvent")
+                if remote then remote:FireServer("Crash", string.rep("GGPVP", 1000)) end
             end
-            task.wait(0.1)
+            task.wait()
         end
     end)
 end)
 
 ----------------------------------------------------
--- LOOPS (NÃO ALTERAR)
+-- LOOP PRINCIPAL (DANO CORRIGIDO + ESP)
 ----------------------------------------------------
 RunService.RenderStepped:Connect(function()
     FOVCircle.Radius = _G.Fov
     FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    
+    FOVCircle.Visible = true
+
+    -- LÓGICA DE AIMBOT PARA MATAR (DANO REGISTRADO)
     if _G.Aimbot then
         local target = GetClosest()
         if target then
-            local pos = Camera:WorldToViewportPoint(target.Position)
+            local pos, onScreen = Camera:WorldToViewportPoint(target.Position)
             local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-            mousemoverel((pos.X - center.X) * _G.Smoothness, (pos.Y - center.Y) * _G.Smoothness)
+            
+            if onScreen then
+                -- Move o mouse (Gira o Personagem para o Servidor)
+                mousemoverel((pos.X - center.X) * _G.Smoothness, (pos.Y - center.Y) * _G.Smoothness)
+                
+                -- Alinha a Câmera (Garante que o tiro vá no alvo)
+                local currentCF = Camera.CFrame
+                local targetCF = CFrame.new(currentCF.Position, target.Position)
+                Camera.CFrame = currentCF:Lerp(targetCF, _G.Smoothness)
+            end
         end
     end
 
-    -- ESP SYSTEM (BOX, NAME, HEALTH, DISTANCE)
+    -- SISTEMA ESP
     for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LP and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            local root = p.Character.HumanoidRootPart
-            local hum = p.Character:FindFirstChildOfClass("Humanoid")
-            local pos, onScreen = Camera:WorldToViewportPoint(root.Position)
-            
-            local hl = p.Character:FindFirstChild("GGPVP_HL")
-            if _G.ESP_Master and onScreen then
-                if not hl then
-                    hl = Instance.new("Highlight", p.Character)
-                    hl.Name = "GGPVP_HL"
+        if p ~= LP then
+            if not ESP_Elements[p] then CreateESP(p) end
+            local e = ESP_Elements[p]
+            local char = p.Character
+            if _G.ESP_Master and char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
+                local root, hum = char.HumanoidRootPart, char.Humanoid
+                local pos, on = Camera:WorldToViewportPoint(root.Position)
+                if on and hum.Health > 0 then
+                    local size = 2000 / pos.Z
+                    e.Box.Visible = _G.ESP_Box
+                    e.Box.Size = Vector2.new(size, size * 1.5)
+                    e.Box.Position = Vector2.new(pos.X - size/2, pos.Y - size/2)
+                    e.Name.Visible = _G.ESP_Name
+                    e.Name.Text = p.Name
+                    e.Name.Position = Vector2.new(pos.X, pos.Y - size/2 - 15)
+                    e.Health.Visible = _G.ESP_Health
+                    e.Health.Text = "HP: " .. math.floor(hum.Health)
+                    e.Health.Position = Vector2.new(pos.X, pos.Y + size/2 + 5)
+                    e.Dist.Visible = _G.ESP_Distance
+                    e.Dist.Text = math.floor((LP.Character.HumanoidRootPart.Position - root.Position).Magnitude) .. "m"
+                    e.Dist.Position = Vector2.new(pos.X, pos.Y + size/2 + 20)
+                else
+                    e.Box.Visible = false; e.Name.Visible = false; e.Health.Visible = false; e.Dist.Visible = false
                 end
-                hl.Enabled = true
-                -- Aqui você pode expandir para Drawing.new Square se quiser Boxes 2D perfeitas.
-                -- Usei Highlight para performance, mas os nomes/vida podem ser via BillboardGui.
-            else
-                if hl then hl.Enabled = false end
+            elseif e then
+                e.Box.Visible = false; e.Name.Visible = false; e.Health.Visible = false; e.Dist.Visible = false
             end
         end
     end
 end)
 
+-- LOOP DE FÍSICA (SPEED/FLY)
 RunService.Heartbeat:Connect(function()
     if LP.Character and LP.Character:FindFirstChild("Humanoid") then
         LP.Character.Humanoid.WalkSpeed = _G.Speed
@@ -196,5 +234,13 @@ RunService.Heartbeat:Connect(function()
         elseif root and root:FindFirstChild("FlyForce") then
             root.FlyForce:Destroy()
         end
+    end
+end)
+
+-- LIMPEZA AO SAIR
+Players.PlayerRemoving:Connect(function(p)
+    if ESP_Elements[p] then
+        for _, obj in pairs(ESP_Elements[p]) do obj:Destroy() end
+        ESP_Elements[p] = nil
     end
 end)
