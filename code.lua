@@ -1,4 +1,6 @@
 -- [[ GGPVP | BY DNLL & SIX ]]
+-- Versão Salva na Nuvem (Kavo UI - Estabilizada)
+
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
 
 --// CONFIGURAÇÕES GLOBAIS
@@ -33,7 +35,7 @@ local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 
---// 1. TELA DE CARREGAMENTO
+--// 1. TELA DE CARREGAMENTO (PRESERVADA)
 local loader = Instance.new("ScreenGui", CoreGui)
 local mainFrame = Instance.new("Frame", loader)
 mainFrame.Size = UDim2.new(0, 300, 0, 100)
@@ -79,7 +81,7 @@ FOVCircle.Thickness = 1
 FOVCircle.Transparency = 0.5
 FOVCircle.Visible = true
 
---// 5. ABAS
+--// 5. ABAS (COMBATE / VISUAL / TROLL / CONFIG)
 local Combat = Window:NewTab("Combate")
 local CSect = Combat:NewSection("Aimbot Supreme")
 CSect:NewToggle("Ativar Aimbot", "Mira automática", function(v) _G.Aimbot = v end)
@@ -102,15 +104,9 @@ local Troll = Window:NewTab("Troll")
 local TSect = Troll:NewSection("Movimentação & Server")
 TSect:NewSlider("Velocidade", "WalkSpeed", 500, 16, function(v) _G.Speed = v end)
 
--- FLY UNIFICADO
-local FlyToggle = TSect:NewToggle("Ativar Fly", "Voar (WASD)", function(v) 
-    _G.Fly = v 
-end)
-
+local FlyToggle = TSect:NewToggle("Ativar Fly", "Voar (WASD)", function(v) _G.Fly = v end)
 TSect:NewSlider("Velocidade do Voo", "Fly Speed", 500, 10, function(v) _G.FlySpeed = v end)
-TSect:NewKeybind("Bind do Fly", "Atalho teclado", Enum.KeyCode.F, function(key) 
-    _G.FlyKey = key 
-end)
+TSect:NewKeybind("Bind do Fly", "Atalho teclado", Enum.KeyCode.F, function(key) _G.FlyKey = key end)
 
 TSect:NewButton("CRASH SERVER", "Lag Extreme", function()
     _G.Crashing = not _G.Crashing
@@ -132,29 +128,36 @@ ConfSect:NewKeybind("Tecla do Menu", "Minimizar", Enum.KeyCode.Home, function(ke
 ConfSect:NewColorPicker("Cor do FOV", "Círculo", Color3.fromRGB(0, 255, 255), function(color) _G.FovColor = color end)
 ConfSect:NewColorPicker("Cor Box (ESP)", "Quadrados", Color3.fromRGB(255, 0, 0), function(color) _G.BoxColor = color end)
 
---// 6. LÓGICA DE MINIMIZAR E BINDS (CORRIGIDA)
+--// 6. LÓGICA DE CONTROLE (O QUE SALVAMOS)
 local MenuVisible = true
+local function StopFly()
+    if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+        local root = LP.Character.HumanoidRootPart
+        if root:FindFirstChild("FlyF") then root.FlyF:Destroy() end
+        if root:FindFirstChild("FlyG") then root.FlyG:Destroy() end
+    end
+end
+
 UIS.InputBegan:Connect(function(input, gpe)
-    -- Minimizar Menu Corrigido
     if input.KeyCode == _G.MenuKey then
         MenuVisible = not MenuVisible
-        for _, obj in pairs(CoreGui:GetChildren()) do
-            if obj:IsA("ScreenGui") and obj:FindFirstChild("Main") then -- Detecta a Kavo
-                obj.Enabled = MenuVisible
+        for _, gui in pairs(CoreGui:GetChildren()) do
+            if gui:IsA("ScreenGui") and (gui:FindFirstChild("Main") or gui:FindFirstChild("Container")) then
+                gui.Enabled = MenuVisible
             end
         end
         UIS.MouseIconEnabled = MenuVisible
+        if not MenuVisible then UIS.MouseBehavior = Enum.MouseBehavior.Default end
     end
     
-    -- Bind do Fly Unificado Corrigido
     if not gpe and input.KeyCode == _G.FlyKey then
         _G.Fly = not _G.Fly
         FlyToggle:UpdateToggle(_G.Fly)
-        Notify("FLY: " .. (_G.Fly and "ATIVADO" or "DESATIVADO"))
+        if not _G.Fly then StopFly() end
     end
 end)
 
---// 7. FUNÇÕES DE SUPORTE
+--// 7. FUNÇÕES DE SUPORTE (AIMBOT/ESP)
 local function Validate(part)
     if not part or not part.Parent then return false end
     local char = part.Parent
@@ -170,22 +173,6 @@ local function Validate(part)
     return true
 end
 
-local function GetClosest()
-    local target, shortest = nil, _G.Fov
-    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    for _, v in pairs(Players:GetPlayers()) do
-        if v ~= LP and v.Character and v.Character:FindFirstChild(_G.TargetPart) then
-            local part = v.Character[_G.TargetPart]
-            local pos, screen = Camera:WorldToViewportPoint(part.Position)
-            if screen and Validate(part) then
-                local mag = (Vector2.new(pos.X, pos.Y) - center).Magnitude
-                if mag < shortest then shortest = mag; target = part end
-            end
-        end
-    end
-    return target
-end
-
 local ESP_Elements = {}
 RunService.RenderStepped:Connect(function()
     FOVCircle.Radius = _G.Fov
@@ -193,11 +180,20 @@ RunService.RenderStepped:Connect(function()
     FOVCircle.Color = _G.FovColor
 
     if _G.Aimbot then
-        local t = GetClosest()
-        if t then
-            local pos = Camera:WorldToViewportPoint(t.Position)
-            local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-            mousemoverel((pos.X - center.X) * _G.Smoothness, (pos.Y - center.Y) * _G.Smoothness)
+        local target, shortest = nil, _G.Fov
+        for _, v in pairs(Players:GetPlayers()) do
+            if v ~= LP and v.Character and v.Character:FindFirstChild(_G.TargetPart) then
+                local part = v.Character[_G.TargetPart]
+                local pos, screen = Camera:WorldToViewportPoint(part.Position)
+                if screen and Validate(part) then
+                    local mag = (Vector2.new(pos.X, pos.Y) - FOVCircle.Position).Magnitude
+                    if mag < shortest then shortest = mag; target = part end
+                end
+            end
+        end
+        if target then
+            local pos = Camera:WorldToViewportPoint(target.Position)
+            mousemoverel((pos.X - (Camera.ViewportSize.X/2)) * _G.Smoothness, (pos.Y - (Camera.ViewportSize.Y/2)) * _G.Smoothness)
         end
     end
 
@@ -219,27 +215,33 @@ RunService.RenderStepped:Connect(function()
                 else e.Box.Visible = false; e.Name.Visible = false; e.Health.Visible = false; e.Dist.Visible = false end
             end
         end
+    else
+        for _, e in pairs(ESP_Elements) do e.Box.Visible = false; e.Name.Visible = false; e.Health.Visible = false; e.Dist.Visible = false end
     end
 end)
 
--- LOOP DE FÍSICA
+--// 8. LOOP DE FÍSICA
 RunService.Heartbeat:Connect(function()
     if LP.Character and LP.Character:FindFirstChild("Humanoid") then
         LP.Character.Humanoid.WalkSpeed = _G.Speed
         local root = LP.Character:FindFirstChild("HumanoidRootPart")
-        if _G.Fly and root then
-            if not root:FindFirstChild("FlyF") then 
-                local bv = Instance.new("BodyVelocity", root)
-                bv.Name = "FlyF"; bv.MaxForce = Vector3.new(9e9,9e9,9e9) 
+        if root then
+            if _G.Fly then
+                local bv = root:FindFirstChild("FlyF") or Instance.new("BodyVelocity", root)
+                bv.Name = "FlyF"; bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                local bg = root:FindFirstChild("FlyG") or Instance.new("BodyGyro", root)
+                bg.Name = "FlyG"; bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+                
+                local v = Vector3.new(0, 0.1, 0)
+                if UIS:IsKeyDown(Enum.KeyCode.W) then v += Camera.CFrame.LookVector end
+                if UIS:IsKeyDown(Enum.KeyCode.S) then v -= Camera.CFrame.LookVector end
+                if UIS:IsKeyDown(Enum.KeyCode.A) then v -= Camera.CFrame.RightVector end
+                if UIS:IsKeyDown(Enum.KeyCode.D) then v += Camera.CFrame.RightVector end
+                bv.Velocity = v * _G.FlySpeed
+                bg.CFrame = Camera.CFrame
+            else
+                StopFly()
             end
-            local v = Vector3.new(0,0.1,0)
-            if UIS:IsKeyDown(Enum.KeyCode.W) then v += Camera.CFrame.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.S) then v -= Camera.CFrame.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.A) then v -= Camera.CFrame.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.D) then v += Camera.CFrame.RightVector end
-            root.FlyF.Velocity = v * _G.FlySpeed
-        elseif root and root:FindFirstChild("FlyF") then 
-            root.FlyF:Destroy() 
         end
     end
 end)
