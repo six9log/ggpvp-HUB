@@ -47,7 +47,7 @@ loadTxt.TextColor3 = Color3.fromRGB(0, 255, 255)
 loadTxt.Font = Enum.Font.GothamBold
 loadTxt.TextSize = 18
 loadTxt.BackgroundTransparency = 1
-task.wait(1.5)
+task.wait(1)
 loader:Destroy()
 
 --// 2. NOTIFICAÇÃO
@@ -65,7 +65,7 @@ local function Notify(msg)
     label.Font = Enum.Font.GothamSemibold
     label.TextSize = 13
     label.BackgroundTransparency = 1
-    task.delay(4, function() sg:Destroy() end)
+    task.delay(3, function() sg:Destroy() end)
 end
 
 Notify("CHEAT ATIVADO COM SUCESSO")
@@ -73,7 +73,7 @@ Notify("CHEAT ATIVADO COM SUCESSO")
 --// 3. JANELA PRINCIPAL
 local Window = Library.CreateLib("GGPVP | BY DNLL & SIX", "DarkTheme")
 
---// 4. SISTEMA DE FOV (FIXO PARA MUDAR COR)
+--// 4. FOV DRAWING
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.Transparency = 0.5
@@ -83,7 +83,7 @@ FOVCircle.Visible = true
 local Combat = Window:NewTab("Combate")
 local CSect = Combat:NewSection("Aimbot Supreme")
 CSect:NewToggle("Ativar Aimbot", "Mira automática", function(v) _G.Aimbot = v end)
-CSect:NewDropdown("Focar em:", "Onde a mira gruda", {"Head", "UpperTorso", "HumanoidRootPart"}, function(v) _G.TargetPart = v end)
+CSect:NewDropdown("Focar em:", "Parte do corpo", {"Head", "UpperTorso", "HumanoidRootPart"}, function(v) _G.TargetPart = v end)
 CSect:NewToggle("Wall Check", "Verifica paredes", function(v) _G.WallCheck = v end)
 CSect:NewToggle("Aim Check Morto", "Ignora mortos", function(v) _G.AimCheckMorto = v end)
 CSect:NewSlider("Distância Máxima", "Alcance", 5000, 100, function(v) _G.MaxDistance = v end)
@@ -101,9 +101,17 @@ VSect:NewToggle("Mostrar Distância", "Metros", function(v) _G.ESP_Distance = v 
 local Troll = Window:NewTab("Troll")
 local TSect = Troll:NewSection("Movimentação & Server")
 TSect:NewSlider("Velocidade", "WalkSpeed", 500, 16, function(v) _G.Speed = v end)
-TSect:NewToggle("Ativar Fly", "Voar (WASD)", function(v) _G.Fly = v end)
+
+-- FLY UNIFICADO (Toggle + Bind)
+local FlyToggle = TSect:NewToggle("Ativar Fly", "Voar (WASD)", function(v) 
+    _G.Fly = v 
+end)
+
 TSect:NewSlider("Velocidade do Voo", "Fly Speed", 500, 10, function(v) _G.FlySpeed = v end)
-TSect:NewKeybind("Bind do Fly", "Tecla para voar", Enum.KeyCode.F, function(key) _G.FlyKey = key end)
+TSect:NewKeybind("Bind do Fly", "Atalho teclado", Enum.KeyCode.F, function(key) 
+    _G.FlyKey = key 
+end)
+
 TSect:NewButton("CRASH SERVER", "Lag Extreme", function()
     _G.Crashing = not _G.Crashing
     task.spawn(function()
@@ -121,36 +129,36 @@ end)
 local Config = Window:NewTab("Config")
 local ConfSect = Config:NewSection("Ajustes de Sistema")
 ConfSect:NewKeybind("Tecla do Menu", "Minimizar", Enum.KeyCode.Home, function(key) _G.MenuKey = key end)
-ConfSect:NewColorPicker("Cor do FOV", "Círculo de Mira", Color3.fromRGB(0, 255, 255), function(color) _G.FovColor = color end)
-ConfSect:NewColorPicker("Cor da Box (ESP)", "Quadrados", Color3.fromRGB(255, 0, 0), function(color) _G.BoxColor = color end)
+ConfSect:NewColorPicker("Cor do FOV", "Círculo", Color3.fromRGB(0, 255, 255), function(color) _G.FovColor = color end)
+ConfSect:NewColorPicker("Cor Box (ESP)", "Quadrados", Color3.fromRGB(255, 0, 0), function(color) _G.BoxColor = color end)
 
---// 6. LOGICA DE MINIMIZAR CORRIGIDA
+--// 6. LÓGICA DE MINIMIZAR E BINDS (MOUSE CORRIGIDO)
 local MenuVisible = true
 UIS.InputBegan:Connect(function(input, gpe)
-    if not gpe and input.KeyCode == _G.MenuKey then
+    -- Minimizar Menu
+    if input.KeyCode == _G.MenuKey then
         MenuVisible = not MenuVisible
-        for _, gui in pairs(CoreGui:GetChildren()) do
-            if gui.Name == "GGPVP | BY DNLL & SIX" then
-                gui.Enabled = MenuVisible
-            end
-        end
-        UIS.MouseIconEnabled = MenuVisible
-        UIS.MouseBehavior = MenuVisible and Enum.MouseBehavior.Default or Enum.MouseBehavior.LockCenter
+        local gui = CoreGui:FindFirstChild("GGPVP | BY DNLL & SIX") or CoreGui:FindFirstChild("Library")
+        if gui then gui.Enabled = MenuVisible end
+        
+        -- Mouse sempre livre
+        UIS.MouseIconEnabled = true
+        UIS.MouseBehavior = Enum.MouseBehavior.Default
     end
+    
+    -- Bind do Fly Unificado com o Menu
     if not gpe and input.KeyCode == _G.FlyKey then
-        _G.Fly = not _G.Fly
-        Notify("FLY: " .. (_G.Fly and "ON" or "OFF"))
+        FlyToggle:UpdateToggle(not _G.Fly) -- Isso atualiza a função e o visual no menu
+        Notify("FLY: " .. (_G.Fly and "ATIVADO" or "DESATIVADO"))
     end
 end)
 
---// 7. VALIDAÇÃO E ESP (RESTAURADOS)
+--// 7. FUNÇÕES DE SUPORTE (VALIDAÇÃO / ESP / AIMBOT)
 local function Validate(part)
     if not part or not part.Parent then return false end
     local char = part.Parent
     local hum = char:FindFirstChildOfClass("Humanoid")
     if _G.AimCheckMorto and (not hum or hum.Health <= 0) then return false end
-    local mag = (LP.Character.HumanoidRootPart.Position - part.Position).Magnitude
-    if mag > _G.MaxDistance then return false end
     if _G.WallCheck then
         local params = RaycastParams.new()
         params.FilterType = Enum.RaycastFilterType.Exclude
@@ -213,16 +221,24 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+-- LOOP DE FÍSICA (FLY / SPEED)
 RunService.Heartbeat:Connect(function()
     if LP.Character and LP.Character:FindFirstChild("Humanoid") then
         LP.Character.Humanoid.WalkSpeed = _G.Speed
-        local root = LP.Character.HumanoidRootPart
+        local root = LP.Character:FindFirstChild("HumanoidRootPart")
         if _G.Fly and root then
-            if not root:FindFirstChild("FlyF") then local bv = Instance.new("BodyVelocity", root); bv.Name = "FlyF"; bv.MaxForce = Vector3.new(9e9,9e9,9e9) end
-            local v = Vector3.zero
+            if not root:FindFirstChild("FlyF") then 
+                local bv = Instance.new("BodyVelocity", root)
+                bv.Name = "FlyF"; bv.MaxForce = Vector3.new(9e9,9e9,9e9) 
+            end
+            local v = Vector3.new(0,0.1,0)
             if UIS:IsKeyDown(Enum.KeyCode.W) then v += Camera.CFrame.LookVector end
             if UIS:IsKeyDown(Enum.KeyCode.S) then v -= Camera.CFrame.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then v -= Camera.CFrame.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then v += Camera.CFrame.RightVector end
             root.FlyF.Velocity = v * _G.FlySpeed
-        elseif root:FindFirstChild("FlyF") then root.FlyF:Destroy() end
+        elseif root and root:FindFirstChild("FlyF") then 
+            root.FlyF:Destroy() 
+        end
     end
 end)
