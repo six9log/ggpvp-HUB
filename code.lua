@@ -7,8 +7,8 @@ _G.Aimbot = false
 _G.TargetPart = "Head"
 _G.Fov = 150
 _G.WallCheck = true
-_G.AimCheckMorto = true -- ATIVADO POR PADRÃO
-_G.MaxDistance = 1000
+_G.AimCheckMorto = true
+_G.MaxDistance = 1000 -- Distância máxima inicial
 _G.Smoothness = 0.2
 
 _G.ESP_Master = false
@@ -33,16 +33,14 @@ local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 
---// NOTIFICAÇÃO MINIMALISTA (CANTO INFERIOR DIREITO)
+--// NOTIFICAÇÃO
 local function Notify(text)
     local sg = Instance.new("ScreenGui", CoreGui)
     local frame = Instance.new("Frame", sg)
     frame.Size = UDim2.new(0, 220, 0, 40)
     frame.Position = UDim2.new(1, -230, 1, -50)
     frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-    frame.BorderSizePixel = 0
     Instance.new("UICorner", frame)
-    
     local label = Instance.new("TextLabel", frame)
     label.Size = UDim2.new(1, -10, 1, 0)
     label.Position = UDim2.new(0, 10, 0, 0)
@@ -52,7 +50,6 @@ local function Notify(text)
     label.TextSize = 12
     label.BackgroundTransparency = 1
     label.TextXAlignment = Enum.TextXAlignment.Left
-    
     task.delay(4, function() sg:Destroy() end)
 end
 
@@ -74,12 +71,21 @@ UIS.InputBegan:Connect(function(input, gpe)
                 gui.Enabled = MenuVisible
             end
         end
-        UIS.MouseIconEnabled = MenuVisible
     end
 end)
 
---// SISTEMA ESP (DRAWING)
+--// SISTEMA ESP (COM LIMPEZA)
 local ESP_Elements = {}
+
+local function RemoveESP(plr)
+    if ESP_Elements[plr] then
+        for _, drawing in pairs(ESP_Elements[plr]) do
+            drawing:Remove()
+        end
+        ESP_Elements[plr] = nil
+    end
+end
+
 local function CreateESP(plr)
     if ESP_Elements[plr] then return end
     ESP_Elements[plr] = {
@@ -95,13 +101,17 @@ local function CreateESP(plr)
     e.Dist.Size = 14; e.Dist.Center = true; e.Dist.Outline = true
 end
 
---// VALIDAÇÃO E ALVO (COM CHECK MORTO)
+-- Limpa quando alguém sai
+Players.PlayerRemoving:Connect(RemoveESP)
+
+--// VALIDAÇÃO
 local function Validate(part)
     if not part or not part.Parent then return false end
     local char = part.Parent
     local hum = char:FindFirstChildOfClass("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
     
-    -- Lógica do Check Morto
+    if not root or (LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") and (root.Position - LP.Character.HumanoidRootPart.Position).Magnitude > _G.MaxDistance) then return false end
     if _G.AimCheckMorto and (not hum or hum.Health <= 0) then return false end
     
     if _G.WallCheck then
@@ -139,6 +149,7 @@ CSect:NewToggle("Ativar Aimbot", "Mira automática", function(v) _G.Aimbot = v e
 CSect:NewDropdown("Focar em:", "Parte do corpo", {"Head", "UpperTorso", "HumanoidRootPart"}, function(v) _G.TargetPart = v end)
 CSect:NewToggle("Wall Check", "Verifica paredes", function(v) _G.WallCheck = v end)
 CSect:NewToggle("Aim Check Morto", "Ignora jogadores mortos", function(v) _G.AimCheckMorto = v end)
+CSect:NewSlider("Distância Máxima", "Alcance Geral", 5000, 100, function(v) _G.MaxDistance = v end)
 CSect:NewSlider("Raio do FOV", "Tamanho do círculo", 800, 50, function(v) _G.Fov = v end)
 CSect:NewSlider("Suavidade", "Smoothness", 100, 1, function(v) _G.Smoothness = v/100 end)
 
@@ -183,25 +194,28 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    if _G.ESP_Master then
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LP then
-                if not ESP_Elements[p] then CreateESP(p) end
-                local e = ESP_Elements[p]
-                local char = p.Character
-                if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
-                    local root, hum = char.HumanoidRootPart, char.Humanoid
-                    local pos, on = Camera:WorldToViewportPoint(root.Position)
-                    if on and hum.Health > 0 then
-                        local size = 2000 / pos.Z
-                        e.Box.Visible = _G.ESP_Box; e.Box.Size = Vector2.new(size, size * 1.5); e.Box.Position = Vector2.new(pos.X - size/2, pos.Y - size/2); e.Box.Color = _G.BoxColor
-                        e.Name.Visible = _G.ESP_Name; e.Name.Text = p.Name; e.Name.Position = Vector2.new(pos.X, pos.Y - size/2 - 15)
-                        e.Health.Visible = _G.ESP_Health; e.Health.Text = "HP: "..math.floor(hum.Health); e.Health.Position = Vector2.new(pos.X, pos.Y + size/2 + 5); e.Health.Color = _G.HealthColor
-                        e.Dist.Visible = _G.ESP_Distance; e.Dist.Text = math.floor((LP.Character.HumanoidRootPart.Position - root.Position).Magnitude).."m"; e.Dist.Position = Vector2.new(pos.X, pos.Y + size/2 + 20)
-                    else
-                        e.Box.Visible = false; e.Name.Visible = false; e.Health.Visible = false; e.Dist.Visible = false
-                    end
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LP then
+            if not ESP_Elements[p] then CreateESP(p) end
+            local e = ESP_Elements[p]
+            local char = p.Character
+            
+            if _G.ESP_Master and char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
+                local root, hum = char.HumanoidRootPart, char.Humanoid
+                local pos, on = Camera:WorldToViewportPoint(root.Position)
+                local dist = (LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")) and (root.Position - LP.Character.HumanoidRootPart.Position).Magnitude or 0
+                
+                if on and hum.Health > 0 and dist <= _G.MaxDistance then
+                    local size = 2000 / pos.Z
+                    e.Box.Visible = _G.ESP_Box; e.Box.Size = Vector2.new(size, size * 1.5); e.Box.Position = Vector2.new(pos.X - size/2, pos.Y - size/2); e.Box.Color = _G.BoxColor
+                    e.Name.Visible = _G.ESP_Name; e.Name.Text = p.Name; e.Name.Position = Vector2.new(pos.X, pos.Y - size/2 - 15)
+                    e.Health.Visible = _G.ESP_Health; e.Health.Text = "HP: "..math.floor(hum.Health); e.Health.Position = Vector2.new(pos.X, pos.Y + size/2 + 5); e.Health.Color = _G.HealthColor
+                    e.Dist.Visible = _G.ESP_Distance; e.Dist.Text = math.floor(dist).."m"; e.Dist.Position = Vector2.new(pos.X, pos.Y + size/2 + 20)
+                else
+                    e.Box.Visible = false; e.Name.Visible = false; e.Health.Visible = false; e.Dist.Visible = false
                 end
+            elseif e then
+                e.Box.Visible = false; e.Name.Visible = false; e.Health.Visible = false; e.Dist.Visible = false
             end
         end
     end
