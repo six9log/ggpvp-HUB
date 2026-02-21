@@ -1,6 +1,6 @@
 -- [[ GGPVP | BY DNLL & SIX ]]
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("GGPVP | BY DNLL & SIX  V 1.0.1", "DarkTheme")
+local Window = Library.CreateLib("GGPVP | BY DNLL & SIX v1.0.1", "DarkTheme")
 
 --// CONFIGURAÇÕES GLOBAIS
 _G.Aimbot = false
@@ -26,10 +26,8 @@ _G.FovColor = Color3.fromRGB(0, 255, 255)
 _G.BoxColor = Color3.fromRGB(255, 0, 0)
 _G.HealthColor = Color3.fromRGB(0, 255, 0)
 
--- NOVAS FUNÇÕES PEDIDAS
+-- VARIÁVEL NOVA (MOSTRAR FOV)
 _G.ShowFov = true
-_G.NoRecoil = false
-_G.Wallbang = false -- A bala que atravessa parede
 
 local Players = game:GetService("Players")
 local LP = Players.LocalPlayer
@@ -66,13 +64,14 @@ FOVCircle.Thickness = 1
 FOVCircle.Transparency = 0.7
 FOVCircle.Visible = true
 
---// TECLA PARA MINIMIZAR
+--// TECLA PARA MINIMIZAR (CORRIGIDO PARA EXECUTORES MODERNOS)
 local MenuVisible = true
 UIS.InputBegan:Connect(function(input, gpe)
 if not gpe and input.KeyCode == _G.MenuKey then
 MenuVisible = not MenuVisible
-for _, gui in pairs(CoreGui:GetChildren()) do
-if gui:IsA("ScreenGui") and (gui:FindFirstChild("Main") or gui:FindFirstChild("Container")) then
+local guiParent = (gethui and gethui()) or CoreGui
+for _, gui in pairs(guiParent:GetChildren()) do
+if gui:IsA("ScreenGui") and gui:FindFirstChild("Main") then
 gui.Enabled = MenuVisible
 end
 end
@@ -116,7 +115,7 @@ local hum = char:FindFirstChildOfClass("Humanoid")
 local root = char:FindFirstChild("HumanoidRootPart")
 if not root or (LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") and (root.Position - LP.Character.HumanoidRootPart.Position).Magnitude > _G.MaxDistance) then return false end
 if _G.AimCheckMorto and (not hum or hum.Health <= 0) then return false end
-if _G.WallCheck and not _G.Wallbang then -- Desativa check de parede se Wallbang estiver on
+if _G.WallCheck then 
 local params = RaycastParams.new()
 params.FilterType = Enum.RaycastFilterType.Exclude
 params.FilterDescendantsInstances = {LP.Character, char}
@@ -133,7 +132,7 @@ for _, v in pairs(Players:GetPlayers()) do
 if v ~= LP and v.Character and v.Character:FindFirstChild(_G.TargetPart) then
 local part = v.Character[_G.TargetPart]
 local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
-if (onScreen or _G.Wallbang) and Validate(part) then
+if onScreen and Validate(part) then
 local mag = (Vector2.new(pos.X, pos.Y) - center).Magnitude
 if mag < shortest then shortest = mag; target = part end
 end
@@ -148,13 +147,11 @@ end
 local Combat = Window:NewTab("Combate")
 local CSect = Combat:NewSection("Aimbot Supreme")
 CSect:NewToggle("Ativar Aimbot", "Mira automática", function(v) _G.Aimbot = v end)
-CSect:NewToggle("No Recoil Pro", "Câmera Estática", function(v) _G.NoRecoil = v end)
-CSect:NewToggle("Bala Mágica (Wallbang)", "Atravessa Paredes", function(v) _G.Wallbang = v end)
 CSect:NewDropdown("Focar em:", "Parte do corpo", {"Head", "UpperTorso", "HumanoidRootPart"}, function(v) _G.TargetPart = v end)
 CSect:NewToggle("Wall Check", "Verifica paredes", function(v) _G.WallCheck = v end)
 CSect:NewToggle("Aim Check Morto", "Ignora jogadores mortos", function(v) _G.AimCheckMorto = v end)
 CSect:NewSlider("Distância Máxima", "Alcance Geral", 5000, 100, function(v) _G.MaxDistance = v end)
-CSect:NewToggle("Mostrar FOV", "Círculo na tela", function(v) _G.ShowFov = v end)
+CSect:NewToggle("Mostrar FOV", "Liga/Desliga o Círculo", function(v) _G.ShowFov = v end)
 CSect:NewSlider("Raio do FOV", "Tamanho do círculo", 800, 50, function(v) _G.Fov = v end)
 CSect:NewSlider("Suavidade", "Smoothness", 100, 1, function(v) _G.Smoothness = v/100 end)
 
@@ -183,31 +180,19 @@ ConfSect:NewColorPicker("Cor da Vida", "Texto HP", Color3.fromRGB(0, 255, 0), fu
 -- LOOPS
 ----------------------------------------------------
 RunService.RenderStepped:Connect(function()
+-- Controle do Círculo de FOV
 FOVCircle.Visible = _G.ShowFov
 FOVCircle.Radius = _G.Fov
 FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 FOVCircle.Color = _G.FovColor
 
--- LÓGICA DE NO RECOIL (ESTABILIZAÇÃO TOTAL)
-if _G.NoRecoil then
-    Camera.CFrame = Camera.CFrame * CFrame.Angles(0,0,0)
-    -- Impede a câmera de subir ao atirar
-    if UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-        local camRot = Camera.CFrame:ToOrientation()
-        Camera.CFrame = CFrame.new(Camera.CFrame.Position) * CFrame.Angles(camRot, select(2, Camera.CFrame:ToOrientation()), 0)
-    end
-end
-
+-- CORREÇÃO DO AIMBOT PUXANDO PRO LADO
 if _G.Aimbot then
-local target = GetClosest()
-if target then
-local pos, onScreen = Camera:WorldToViewportPoint(target.Position)
-local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-if onScreen or _G.Wallbang then
-mousemoverel((pos.X - center.X) * _G.Smoothness, (pos.Y - center.Y) * _G.Smoothness)
-Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, target.Position), _G.Smoothness)
-end
-end
+    local target = GetClosest()
+    if target then
+        -- Agora ele apenas trava a câmera suavemente, sem conflito de mouse mover
+        Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, target.Position), _G.Smoothness)
+    end
 end
 
 for _, p in pairs(Players:GetPlayers()) do
