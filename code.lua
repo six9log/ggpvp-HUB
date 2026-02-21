@@ -1,6 +1,6 @@
 -- [[ GGPVP | BY DNLL & SIX ]]
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("GGPVP | BY DNLL & SIX", "DarkTheme")
+local Window = Library.CreateLib("GGPVP | BY DNLL & SIX  V 1.0.1", "DarkTheme")
 
 --// CONFIGURAÇÕES GLOBAIS
 _G.Aimbot = false
