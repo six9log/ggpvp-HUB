@@ -2,6 +2,7 @@
 -- ⚡ GGPVP V2 | ULTIMATE BLACK EDITION (CUSTOM UI ENGINE)
 -- Desenvolvido do Zero | Sem Bibliotecas Externas | +800 Linhas
 -- Foco: FPS Competitivo, Controle de Recuo, Radar 2D e ESP Avançado.
+-- CORREÇÃO: Abas consertadas e FOV travado no centro da tela.
 -- ========================================================================
 
 if not game:IsLoaded() then game.Loaded:Wait() end
@@ -281,7 +282,7 @@ function Library:CreateWindow(titleText)
         TabBtn.MouseButton1Click:Connect(function()
             if ActiveTab then
                 CreateTween(ActiveTab.Btn, {TextColor3 = Color3.fromRGB(180, 180, 180)})
-                CreateTween(ActiveTab.Btn.Indicator, {BackgroundTransparency = 1})
+                CreateTween(ActiveTab.Indicator, {BackgroundTransparency = 1}) -- CORREÇÃO DO BUG AQUI
                 ActiveTab.Page.Visible = false
             end
             CreateTween(TabBtn, {TextColor3 = GGPVP.UI.ThemeColor})
@@ -964,10 +965,10 @@ end)
 RunService.RenderStepped:Connect(function()
     local rainbow = GetRainbow()
     
-    -- Atualiza FOV
+    -- Atualiza FOV (CORRIGIDO PARA O CENTRO DA TELA)
     FOVCircle.Visible = GGPVP.FOV.Enabled
     FOVCircle.Radius = GGPVP.FOV.Radius
-    FOVCircle.Position = UIS:GetMouseLocation()
+    FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     FOVCircle.Color = GGPVP.FOV.Rainbow and rainbow or GGPVP.FOV.Color
     
     UpdateCrosshair()
